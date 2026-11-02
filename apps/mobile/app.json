@@ -3,7 +3,7 @@
     "name": "VoiceBridge AI",
     "slug": "voicebridge-ai",
     "scheme": "voicebridge",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
@@ -18,7 +18,10 @@
     ],
     "android": {
       "package": "app.voicebridge.ai",
-      "permissions": ["RECORD_AUDIO"]
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
+      "usesCleartextTraffic": true
     }
   }
 }
