@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "VoiceBridge AI",
+    "slug": "voicebridge-ai",
+    "scheme": "voicebridge",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow VoiceBridge AI to record messages you choose to translate."
+        }
+      ]
+    ],
+    "android": {
+      "package": "app.voicebridge.ai",
+      "permissions": ["RECORD_AUDIO"]
+    }
+  }
+}
