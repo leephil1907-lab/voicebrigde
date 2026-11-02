@@ -33,7 +33,7 @@ export default function HomeScreen() {
         return;
       }
 
-      await setAudioModeAsync({ allowsRecording: true, playsIn silentMode: true });
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       setRecordingUri(null);
       await recorder.prepareToRecordAsync();
       recorder.record();
