@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, useAudioRecorderState } from "expo-audio";
+import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, useAudioRecorderState, useAudioPlayer } from "expo-audio";
+
+const API_URL = (process.env.EXPO_PUBLIC_API_URL || "http://127.0.0.1:8080").replace(/\/$/, "");
 
 const languages = [
   { code: "es", label: "Spanish", native: "Español" },
@@ -15,9 +17,60 @@ const languages = [
 export default function HomeScreen() {
   const [languageIndex, setLanguageIndex] = useState(0);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
+  const [voiceConsent, setVoiceConsent] = useState(false);
+  const [voiceId, setVoiceId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [translatedText, setTranslatedText] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const player = useAudioPlayer(null);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
   const selectedLanguage = languages[languageIndex];
+
+  async function createVoiceProfile() {
+    if (!recordingUri) return Alert.alert("Voice sample required", "Record a clear sample of your voice first.");
+    if (!voiceConsent) return Alert.alert("Permission required", "Confirm that this is your voice or that you have explicit permission to clone it.");
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.append("name", "My Voice");
+      form.append("consent", "true");
+      form.append("file", { uri: recordingUri, name: "voice-sample.m4a", type: "audio/m4a" } as any);
+      const response = await fetch(API_URL + "/v1/voice-profiles", { method: "POST", body: form });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Voice profile creation failed.");
+      setVoiceId(data.voiceId);
+      Alert.alert("Voice profile created", "Your voice profile is ready. Record a message and translate it.");
+    } catch (error) {
+      Alert.alert("Voice profile error", error instanceof Error ? error.message : "Check your API connection and provider key.");
+    } finally { setBusy(false); }
+  }
+
+  async function translateRecording() {
+    if (!recordingUri) return;
+    if (!voiceId) return Alert.alert("Create your voice profile", "Record a clear voice sample, confirm permission, and create your voice profile first.");
+    setBusy(true);
+    setTranscript(""); setTranslatedText(""); setPreviewUrl(null);
+    try {
+      const form = new FormData();
+      form.append("sourceLanguage", "en");
+      form.append("targetLanguage", selectedLanguage.code);
+      form.append("voiceId", voiceId);
+      form.append("file", { uri: recordingUri, name: "voice-message.m4a", type: "audio/m4a" } as any);
+      const response = await fetch(API_URL + "/v1/voice/translate", { method: "POST", body: form });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Voice translation failed.");
+      setTranscript(data.transcript);
+      setTranslatedText(data.translatedText);
+      const url = API_URL + data.audioUrl;
+      setPreviewUrl(url);
+      await player.replace({ uri: url });
+      Alert.alert("Translation ready", "Review the transcript and translation, then play your generated voice preview.");
+    } catch (error) {
+      Alert.alert("Translation error", error instanceof Error ? error.message : "Check your API connection and provider keys.");
+    } finally { setBusy(false); }
+  }
 
   async function toggleRecording() {
     try {
@@ -95,14 +148,30 @@ export default function HomeScreen() {
             ))}
           </ScrollView>
 
-          <Pressable
-            onPress={() => Alert.alert("Translation engine not connected yet", "Your recording is saved locally. The next milestone connects transcription, translation and voice generation.")}
-            disabled={!recordingUri}
-            style={[styles.translateButton, !recordingUri && styles.translateDisabled]}
-          >
-            <Text style={styles.translateButtonText}>✦  Translate voice message</Text>
+          <View style={styles.voiceSetup}>
+            <Text style={styles.sectionLabel}>YOUR CLONED VOICE</Text>
+            <Text style={styles.voiceHint}>{voiceId ? "Voice profile connected" : "Create a voice profile from a clear recording (ideally 1–2 minutes)."}</Text>
+            <Pressable onPress={() => setVoiceConsent(!voiceConsent)} style={styles.consentRow}>
+              <View style={[styles.consentBox, voiceConsent && styles.consentBoxActive]}>{voiceConsent ? <Text style={styles.consentTick}>✓</Text> : null}</View>
+              <Text style={styles.consentText}>This is my voice, or I have explicit permission to clone it.</Text>
+            </Pressable>
+            <Pressable onPress={createVoiceProfile} disabled={!recordingUri || busy || !!voiceId} style={[styles.secondaryButton, (!recordingUri || busy || !!voiceId) && styles.translateDisabled]}>
+              <Text style={styles.secondaryButtonText}>{voiceId ? "✓  Voice profile ready" : busy ? "Creating voice profile…" : "Create my voice profile"}</Text>
+            </Pressable>
+          </View>
+          <Pressable onPress={translateRecording} disabled={!recordingUri || busy} style={[styles.translateButton, (!recordingUri || busy) && styles.translateDisabled]}>
+            <Text style={styles.translateButtonText}>{busy ? "Processing your voice…" : "✦  Transcribe · Translate · Generate voice"}</Text>
           </Pressable>
-          <Text style={styles.disclaimer}>Your recording stays on this device in this foundation build.</Text>
+          {(transcript || translatedText) ? <View style={styles.resultCard}>
+            <Text style={styles.sectionLabel}>WHAT YOU SAID · ENGLISH</Text>
+            <Text style={styles.resultText}>{transcript}</Text>
+            <Text style={styles.sectionLabel}>TRANSLATION · {selectedLanguage.label.toUpperCase()}</Text>
+            <Text style={styles.resultText}>{translatedText}</Text>
+            <Pressable onPress={() => { if (previewUrl) { player.replace({ uri: previewUrl }); player.play(); } }} disabled={!previewUrl} style={styles.previewButton}>
+              <Text style={styles.previewButtonText}>▶  Play cloned-voice preview</Text>
+            </Pressable>
+          </View> : null}
+          <Text style={styles.disclaimer}>AI processing requires API keys on your server. Preview links expire after 30 minutes in this build.</Text>
         </View>
 
         <View style={styles.sectionHeader}>
@@ -115,7 +184,7 @@ export default function HomeScreen() {
           <View style={styles.channelCard}><Text style={[styles.channelIcon, { color: "#D7E6D9" }]}>＋</Text><Text style={styles.channelName}>More apps</Text><Text style={styles.channelState}>Coming later</Text></View>
         </View>
 
-        <View style={styles.footer}><Text style={styles.footerText}>VOICEBRIDGE AI  ·  FOUNDATION BUILD 0.1.0</Text></View>
+        <View style={styles.footer}><Text style={styles.footerText}>VOICEBRIDGE AI  ·  AI VOICE ENGINE 0.2.0</Text></View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -164,6 +233,19 @@ const styles = StyleSheet.create({
   translateDisabled: { opacity: 0.45 },
   translateButtonText: { color: "#D6F269", fontSize: 12, fontWeight: "800" },
   disclaimer: { color: "#788477", fontSize: 9, textAlign: "center", marginTop: 10 },
+  voiceSetup: { marginTop: 20, paddingTop: 17, borderTopWidth: 1, borderTopColor: "#2B382D" },
+  voiceHint: { color: "#9BA79A", fontSize: 10, lineHeight: 16, marginTop: 4 },
+  consentRow: { flexDirection: "row", alignItems: "center", marginTop: 12 },
+  consentBox: { width: 18, height: 18, borderWidth: 1, borderColor: "#66745B", borderRadius: 5, marginRight: 9, alignItems: "center", justifyContent: "center" },
+  consentBoxActive: { backgroundColor: "#D6F269", borderColor: "#D6F269" },
+  consentTick: { color: "#172014", fontWeight: "900", fontSize: 12 },
+  consentText: { color: "#B9C4B5", fontSize: 10, flex: 1 },
+  secondaryButton: { borderWidth: 1, borderColor: "#56683B", borderRadius: 12, padding: 12, alignItems: "center", marginTop: 12 },
+  secondaryButtonText: { color: "#D6F269", fontSize: 11, fontWeight: "800" },
+  resultCard: { marginTop: 15, padding: 14, borderRadius: 14, backgroundColor: "#111813", borderWidth: 1, borderColor: "#344036" },
+  resultText: { color: "#E4EADF", fontSize: 12, lineHeight: 19, marginTop: 5, marginBottom: 12 },
+  previewButton: { backgroundColor: "#D6F269", borderRadius: 11, padding: 13, alignItems: "center" },
+  previewButtonText: { color: "#172014", fontSize: 11, fontWeight: "900" },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 29, marginBottom: 12 },
   sectionTitle: { color: "#F1F4ED", fontSize: 15, fontWeight: "800" },
   sectionMeta: { color: "#84917F", fontSize: 8, letterSpacing: 1, fontWeight: "700" },
