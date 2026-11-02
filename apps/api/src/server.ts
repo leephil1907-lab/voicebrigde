@@ -3,7 +3,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
-import multipart from "@fastify/multipart";
+import multipart, { type MultipartFile } from "@fastify/multipart";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 
@@ -63,7 +63,7 @@ function requireProviderKeys(reply: { code: (status: number) => { send: (body: u
   return true;
 }
 
-async function readUpload(part: Awaited<ReturnType<typeof app.parts>> extends AsyncIterable<infer T> ? T : never) {
+async function readUpload(part: MultipartFile) {
   if (part.type !== "file") throw new Error("Expected an audio file.");
   const chunks: Buffer[] = [];
   for await (const chunk of part.file) chunks.push(Buffer.from(chunk));
