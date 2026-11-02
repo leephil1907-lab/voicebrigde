@@ -30,6 +30,20 @@ docs/
   product/            Product requirements and UX flows
 ```
 
+## AI voice translation pipeline
+
+The first live AI integration is now implemented in the API and Android UI:
+
+1. Record an audio sample or message on Android.
+2. Enroll an authorized voice sample through ElevenLabs Instant Voice Cloning.
+3. Upload a message recording to the Fastify API.
+4. Transcribe it with OpenAI Audio Transcriptions.
+5. Translate the transcript with OpenAI.
+6. Generate speech with the enrolled ElevenLabs voice using the multilingual model.
+7. Review the transcript and translated text, then play the generated audio preview.
+
+Configure `OPENAI_API_KEY` and `ELEVENLABS_API_KEY` on the API server. See [the voice engine guide](docs/architecture/voice-engine.md). This integration has not yet been validated on a physical device with live provider credentials. Preview audio and voice profile IDs are currently held in process memory / app screen state; durable storage and authenticated accounts are the next production-hardening steps.
+
 ## Planned message pipeline
 
 1. Record audio on the Android device.
@@ -65,7 +79,7 @@ A share-sheet hand-off may create an audio attachment rather than a microphone-r
 
 ## Development status
 
-This repository is being initialized. The first milestone is a runnable mobile/API foundation with explicit provider interfaces and safe messaging boundaries. Live AI generation and production messaging require provider credentials and platform onboarding.
+The mobile recorder, API, OpenAI transcription/translation, ElevenLabs voice enrollment/generation, and audio preview flow are implemented in the repository. Live use requires provider credentials and end-to-end testing. Production storage, account authentication, editing controls, and messaging delivery integrations remain outstanding.
 
 ## Local development
 
