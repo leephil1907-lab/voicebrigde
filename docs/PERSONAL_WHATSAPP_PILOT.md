@@ -1,0 +1,21 @@
+# Personal WhatsApp pilot: engineering status
+
+Status: **not connected or sendable**. A fail-closed owner/consent policy and an isolated transport function have been unit-tested against a mock linked-device socket; no real WhatsApp driver or account has been tested. It is not wired into an API endpoint or UI. Do not present it as a working integration or use it with an account yet. The existing website retains manual OS sharing; that may produce an attachment.
+
+A personal-account integration would use an unofficial WhatsApp Web protocol, which could break or violate provider terms and may lead to account restrictions. Use a secondary test account only after explaining the risk. A linked-device session can have broad access: never expose QR codes, pairing codes, credentials, chat data or tokens in logs, URLs, chat, or to other users.
+
+## Requirements before any owner-only pilot
+
+- A disabled-by-default feature flag and one server-configured Supabase owner UUID. Authenticate every request, compare the owner UUID server-side, use rate limits and protect pairing operations from CSRF/replay. The standalone policy in `apps/api/src/pilot/personal-whatsapp-policy.ts` checks ownership and consent but is not a security boundary until called by authenticated routes.
+- Connect via an isolated, pinned and reviewed provider adapter; no automatic incoming replies, messages, contact imports or bulk sends. Provide mobile-friendly pairing and explicit logout/unlink guidance. Test on the actual Android version and secondary account; a single phone may require a pairing-code flow or another screen.
+- Encrypt sessions at rest using a stable server-only key, restrict database/storage access to the server, serialize updates safely, support account revocation and deletion. Render's ephemeral filesystem is not durable storage. Avoid multiple processes or instances using the same session without a lock. Do not log secrets or contact/message content.
+- Require a completed job owned by the owner, recipient E.164, voice permission, preview confirmation and recipient consent; reserve idempotency transactionally before a provider call. Treat ambiguous send outcomes as unknown, never retry automatically. Verify native voice bubble and playback on controlled recipient devices; provider acknowledgement is not proof of delivery.
+- Review upstream packages, transitive licenses, vulnerabilities and terms before shipping. Do not include outdated vulnerable releases. Run CI, a security review and a real-device test before enabling the pilot.
+
+## Live sessions: separate milestone
+
+ElevenLabs documents an enterprise realtime translation WebSocket at `wss://api.elevenlabs.io/v1/translation/realtime`, with `target_language` and a separately registered `voice_id` and streamed input/output. Provider keys must stay on the server. A two-way in-app call needs authenticated room membership, two separate translation streams, speaker consent, latency handling, audio routing, metering and cleanup. This is not an integration into personal WhatsApp calls, and has not been implemented or validated here. See https://elevenlabs.io/docs/api-reference/realtime-translation/v-1-translation-realtime and docs/REPOSITORY_RESEARCH.md.
+
+## Deployment checks
+
+Set Supabase Auth Site URL and allowlisted redirect URLs to the actual production HTTPS origin. A redirect to localhost on a phone cannot reach the deployed site. Apply migrations, check a private bucket, configure the existing server secrets, and test a real signup, translation and download. Never include keys in browser code or logs. Render deployment and live provider behavior have not been verified in this workspace.

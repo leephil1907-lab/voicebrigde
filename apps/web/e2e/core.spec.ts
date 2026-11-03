@@ -31,9 +31,12 @@ test('registration clearly requests email confirmation and sign in persists acro
   await expect(dialog.getByRole('status')).toContainText('Check your email');
   await dialog.getByRole('button', { name: 'Sign in', exact: true }).click();
   await dialog.getByLabel('Password', { exact: true }).fill('password123'); await dialog.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(dialog).not.toBeVisible(); await expect(page.getByRole('button', { name: /Sign out/ })).toBeVisible();
-  await page.reload(); await expect(page.getByRole('button', { name: /Sign out/ })).toBeVisible();
-  await page.getByRole('button', { name: /Sign out/ }).click(); await expect(page.getByRole('button', { name: 'Sign in', exact: false }).first()).toBeVisible();
+  await expect(dialog).not.toBeVisible(); await expect(page.getByRole('button', { name: 'Open my account' })).toBeVisible();
+  await page.reload(); await expect(page.getByRole('button', { name: 'Open my account' })).toBeVisible();
+  await page.getByRole('button', { name: 'Open my account' }).click();
+  await expect(page.getByRole('heading', { name: 'My account' })).toBeVisible();
+  await expect(page.locator('.account-profile')).toContainText(user.email);
+  await page.getByRole('button', { name: 'Sign out' }).click(); await expect(page.getByRole('button', { name: 'Sign in', exact: false }).first()).toBeVisible();
 });
 test('recording, consent, submission and completed preview use the API', async ({page}) => {
   await setup(page); await page.route('**/v1/voice/translate', async route => { const payload = route.request().postData() || ''; expect(payload).toContain('voiceConsent'); expect(payload).toContain('true'); expect(payload).toContain('targetLanguage'); expect(payload).toContain('fr'); await route.fulfill({ status: 202, json: { id: jobId } }); });
@@ -65,11 +68,11 @@ test('invalid credentials surface an error and do not sign in', async ({page}) =
 test('document head exposes consistent crawlable branding and social previews', async ({ page }) => {
   await page.goto('/');
   await expect(page).toHaveTitle('VoiceBridge AI — Different language. Same you.');
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://voicebridge-9unm.onrender.com/');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://voicebridge-81xs.onrender.com/');
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', 'VoiceBridge AI — Different language. Same you.');
-  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'https://voicebridge-9unm.onrender.com/og-image.png');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'https://voicebridge-81xs.onrender.com/og-image.png');
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
-  await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute('content', 'https://voicebridge-9unm.onrender.com/og-image.png');
+  await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute('content', 'https://voicebridge-81xs.onrender.com/og-image.png');
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg');
   await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/apple-touch-icon.png');
   const preview = await page.request.get('http://127.0.0.1:3000/og-image.png');
@@ -231,4 +234,16 @@ test('sharing opens the device chooser with audio and never calls the delivery A
   const share = page.getByRole('button',{name:'Share with an app'}).first(); await expect(share).toBeEnabled({timeout:15000}); await share.click();
   await expect.poll(() => page.evaluate(() => (window as unknown as {sharedName?: string}).sharedName)).toBe('voicebridge-fr.ogg');
   await expect(page.getByText('No message is sent automatically.',{exact:false})).toBeVisible();
+});
+
+test('mobile account tab opens profile and signed-in user can sign out', async ({browser}) => {
+  const page = await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  await setup(page); await page.goto('/'); await signIn(page);
+  await page.getByRole('navigation',{name:'Mobile navigation'}).getByRole('button',{name:'Account',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'My account'})).toBeVisible();
+  await expect(page.locator('.account-profile')).toContainText(user.email);
+  await expect(page.getByText('Your translated voice notes will appear here.')).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
+  await page.getByRole('button',{name:'Sign out',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Sign in',exact:false}).first()).toBeVisible(); await page.close();
 });

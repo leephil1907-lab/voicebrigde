@@ -663,3 +663,24 @@ html[data-theme="dark"] .alert-banner button { color: #f1da9a; }
   .alert-banner > div { flex: 1 1 calc(100% - 32px); min-width: 0; }
   .alert-banner button { flex-basis: calc(100% - 29px); margin-left: 29px; }
 }
+
+/* Account dashboard */
+.top-user { border: 0; cursor: pointer; }
+.account-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; }
+.profile-header { display:flex; align-items:center; gap:15px; }
+.profile-avatar { width:60px; height:60px; flex-shrink:0; border-radius:18px; display:grid; place-items:center; background:#d9efbd; color:#204d37; font-size:24px; font-weight:800; }
+.profile-header h2,.account-notes h2 { font-size:18px; }
+.profile-header p { color:#71887b; font-size:13px; overflow-wrap:anywhere; margin-top:5px; }
+.account-details-list { margin:24px 0; }
+.account-details-list > div { display:flex; justify-content:space-between; gap:20px; border-top:1px solid #e6eee5; padding:13px 0; font-size:12px; }
+.account-details-list dt { color:#748a7a; }
+.account-details-list dd { margin:0; text-align:right; font-weight:700; overflow-wrap:anywhere; }
+.account-note-list { margin:16px 0; }
+.account-note-list button { width:100%; border:0; border-top:1px solid #e6eee5; background:transparent; color:inherit; display:flex; align-items:center; gap:12px; text-align:left; padding:12px 0; }
+.account-note-list button > span:first-child { flex:1; min-width:0; }
+.account-note-list strong,.account-note-list small { display:block; }
+.account-note-list small { margin-top:4px; color:#71887b; }
+html[data-theme="dark"] .account-details-list > div, html[data-theme="dark"] .account-note-list button { border-color:#3a5642; }
+html[data-theme="dark"] .account-details-list dt, html[data-theme="dark"] .profile-header p, html[data-theme="dark"] .account-note-list small { color:#b1c9b8; }
+@media (max-width:800px) { .mobile-bottom-nav { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media (max-width:600px) { .account-grid { grid-template-columns:minmax(0,1fr); } .mobile-bottom-nav button { font-size:9px; } }
