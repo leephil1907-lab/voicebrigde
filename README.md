@@ -98,3 +98,7 @@ Never commit real API keys, access tokens, voice samples, personal recordings, S
 ## Render deployment
 
 VoiceBridge is configured for one always-on Render Pro Docker web service running the API, React studio and durable worker together. See [the Render deployment guide](docs/RENDER_FREE_DEPLOYMENT.md). The existing Render service must be changed to the Pro instance type in its dashboard; changing `render.yaml` does not alter a service created outside a Blueprint.
+
+### Render Pro setup
+
+The root `render.yaml` defines one paid Pro web service running the API, website and dubbing worker together. See [`docs/RENDER_PRO_QUICKSTART.md`](docs/RENDER_PRO_QUICKSTART.md) for costs, required server-side settings, Supabase email configuration and launch verification. A Pro workspace subscription does not automatically cover the compute charges of additional services.

@@ -12,7 +12,7 @@ COPY apps/web/package.json ./apps/web/package.json
 COPY apps/mobile/package.json ./apps/mobile/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
 
-RUN npm ci
+RUN npm ci --workspace @voicebridge/api --workspace @voicebridge/web --include-workspace-root --include=dev --no-audit --no-fund
 
 ENV NODE_ENV=production
 
