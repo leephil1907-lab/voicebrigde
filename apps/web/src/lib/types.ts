@@ -5,6 +5,7 @@ export interface RuntimeConfig {
   supabasePublishableKey: string;
   maxAudioBytes: number;
   maxAudioSeconds: number;
+  maxTranslationsPerDay?: number;
   targetLanguages: string[];
   channels?: { whatsapp: boolean; telegram: boolean };
 }
