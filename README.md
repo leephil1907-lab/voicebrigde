@@ -32,17 +32,16 @@ docs/
 
 ## AI voice translation pipeline
 
-The first live AI integration is now implemented in the API and Android UI:
+The primary voice engine now uses asynchronous ElevenLabs Dubbing v2 rather than the previous chained transcription → text translation → generic cloned TTS path:
 
-1. Record an audio sample or message on Android.
-2. Enroll an authorized voice sample through ElevenLabs Instant Voice Cloning.
-3. Upload a message recording to the Fastify API.
-4. Transcribe it with OpenAI Audio Transcriptions.
-5. Translate the transcript with OpenAI.
-6. Generate speech with the exact enrolled ElevenLabs voice ID using identity-focused similarity settings (high similarity, speaker boost on, style exaggeration off).
-7. Review the transcript and translated text, then play the generated audio preview.
+1. Record a message on Android.
+2. Upload the recording to the Fastify API; source-language detection is automatic unless a source language is explicitly supplied.
+3. Create an ElevenLabs Dubbing v2 project and queue the target language with cloning strength 8/10.
+4. Poll the asynchronous job until dubbing completes; the model uses the speaker in the source recording as the voice reference and aims to preserve identity, emotion, timing and tone.
+5. Convert the WAV result to mono OGG/Opus with FFmpeg for WhatsApp-compatible voice-note delivery.
+6. Preview the translated audio before choosing a delivery channel.
 
-Configure `OPENAI_API_KEY` and `ELEVENLABS_API_KEY` on the API server. The synthesis defaults prioritize the cloned reference voice rather than a generic voice: similarity boost 0.9, speaker boost on, style 0, and stability 0.55. Use a clean 1–2 minute single-speaker enrollment sample, then record a separate message to translate. See [the voice engine guide](docs/architecture/voice-engine.md). This integration has not yet been validated on a physical device with live provider credentials. Preview audio and voice profile IDs are currently held in process memory / app screen state; durable storage and authenticated accounts are the next production-hardening steps.
+Configure `ELEVENLABS_API_KEY` and ensure FFmpeg is installed (the API Dockerfile installs it). Dubbing v2 supports 90+ languages and is designed to preserve speaker identity, emotional tone and timing, but results still require listening tests; cloning strength 8 favors resemblance and may affect naturalness across very different languages. See [the voice engine guide](docs/architecture/voice-engine.md). Jobs and preview buffers are currently held in process memory; a durable queue, object storage and authenticated accounts remain required before production.
 
 ## Planned message pipeline
 
@@ -77,7 +76,7 @@ See [the WhatsApp integration architecture](docs/architecture/whatsapp-integrati
 
 ## Development status
 
-The mobile recorder, API, OpenAI transcription/translation, ElevenLabs voice enrollment/generation, and audio preview flow are implemented in the repository. Live use requires provider credentials and end-to-end testing. Production storage, account authentication, editing controls, and messaging delivery integrations remain outstanding.
+The mobile recorder, asynchronous ElevenLabs Dubbing v2 job flow, OGG/Opus conversion, audio preview, and initial WhatsApp delivery adapters are implemented in the repository. Live use requires provider credentials and end-to-end testing. Production storage, account authentication, editing controls, and messaging delivery integrations remain outstanding.
 
 ## Local development
 
