@@ -157,6 +157,7 @@ type DubbingJob = {
   id: string; projectId: string; languageId: string | null;
   status: "queued" | "preparing" | "processing" | "completed" | "failed";
   sourceLanguage: string | null; targetLanguage: string;
+  sourceTranscript: string; translatedTranscript: string;
   audioUrl: string | null; error: string | null; createdAt: string;
 };
 const dubbingJobs = new Map<string, DubbingJob>();
@@ -221,6 +222,17 @@ async function processDubbingJob(job: DubbingJob, upload: { buffer: Buffer; file
     if (!audioResponse.ok) throw new Error("Could not retrieve the completed translated audio.");
     const wavAudio = Buffer.from(await audioResponse.arrayBuffer());\n    if (!wavAudio.length || wavAudio.length > 100 * 1024 * 1024) throw new Error("The generated audio is empty or exceeds the 100 MB processing limit.");
     const voiceNoteAudio = await convertWavToOggOpus(wavAudio);
+    try {
+      const [sourceTranscript, targetTranscript] = await Promise.all([
+        elevenLabsRequest<{ language?: string | null; segments?: Array<{ text?: string }> }>(`/v1/dubbing/project/${encodeURIComponent(job.projectId)}/transcript`),
+        elevenLabsRequest<{ source_language?: string | null; segments?: Array<{ translation?: string }> }>(`/v1/dubbing/project/${encodeURIComponent(job.projectId)}/language/${encodeURIComponent(job.languageId!)}/transcript`),
+      ]);
+      job.sourceLanguage = sourceTranscript.language || targetTranscript.source_language || job.sourceLanguage;
+      job.sourceTranscript = (sourceTranscript.segments || []).map((segment) => segment.text?.trim()).filter(Boolean).join(" ");
+      job.translatedTranscript = (targetTranscript.segments || []).map((segment) => segment.translation?.trim()).filter(Boolean).join(" ");
+    } catch (transcriptError) {
+      app.log.warn({ jobId: job.id, error: transcriptError }, "Transcript retrieval failed; audio preview remains available");
+    }
     const previewId = randomUUID();
     audioJobs.set(previewId, { buffer: voiceNoteAudio, contentType: "audio/ogg; codecs=opus", expiresAt: Date.now() + 30 * 60 * 1000 });\n    for (const [key, item] of audioJobs) if (item.expiresAt <= Date.now()) audioJobs.delete(key);
     job.audioUrl = `/v1/voice/previews/${previewId}`;
@@ -249,7 +261,8 @@ app.post("/v1/voice/translate", { config: { rateLimit: { max: 5, timeWindow: "15
     const job: DubbingJob = {
       id, projectId: "", languageId: null, status: "queued",
       sourceLanguage: sourceLanguage === "auto" ? null : sourceLanguage,
-      targetLanguage, audioUrl: null, error: null, createdAt: new Date().toISOString(),
+      targetLanguage, sourceTranscript: "", translatedTranscript: "",
+      audioUrl: null, error: null, createdAt: new Date().toISOString(),
     };
     dubbingJobs.set(id, job);
     void processDubbingJob(job, upload);
@@ -263,7 +276,7 @@ app.post("/v1/voice/translate", { config: { rateLimit: { max: 5, timeWindow: "15
 app.get<{ Params: { id: string } }>("/v1/voice/translations/:id", async (request, reply) => {
   const job = dubbingJobs.get(request.params.id);
   if (!job) return reply.code(404).send({ error: "TRANSLATION_NOT_FOUND", message: "This translation job does not exist or has expired." });
-  return { id: job.id, status: job.status, targetLanguage: job.targetLanguage, sourceLanguage: job.sourceLanguage, audioUrl: job.audioUrl, error: job.error, createdAt: job.createdAt };
+  return { id: job.id, status: job.status, targetLanguage: job.targetLanguage, sourceLanguage: job.sourceLanguage, sourceTranscript: job.sourceTranscript, translatedTranscript: job.translatedTranscript, audioUrl: job.audioUrl, error: job.error, createdAt: job.createdAt };
 });
 
 app.get<{ Params: { id: string } }>("/v1/voice/previews/:id", async (request, reply) => {
