@@ -16,9 +16,6 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8080),
   HOST: z.string().default("0.0.0.0"),
   CORS_ORIGIN: z.string().default("http://localhost:8081"),
-  OPENAI_API_KEY: z.string().optional(),
-  OPENAI_TRANSCRIPTION_MODEL: z.string().default("gpt-4o-mini-transcribe"),
-  OPENAI_TRANSLATION_MODEL: z.string().default("gpt-4o-mini"),
   ELEVENLABS_API_KEY: z.string().optional(),
   ELEVENLABS_MODEL_ID: z.string().default("eleven_multilingual_v2"),
   ELEVENLABS_STABILITY: z.coerce.number().min(0).max(1).default(0.55),
@@ -68,18 +65,6 @@ const languages = [
 const audioJobs = new Map<string, { buffer: Buffer; contentType: string; expiresAt: number }>();
 const voiceProfiles = new Map<string, { voiceId: string; name: string; createdAt: string }>();
 
-function requireProviderKeys(reply: { code: (status: number) => { send: (body: unknown) => unknown } }) {
-  if (!env.OPENAI_API_KEY) {
-    reply.code(503).send({ error: "OPENAI_NOT_CONFIGURED", message: "Add OPENAI_API_KEY to the API environment." });
-    return false;
-  }
-  if (!env.ELEVENLABS_API_KEY) {
-    reply.code(503).send({ error: "ELEVENLABS_NOT_CONFIGURED", message: "Add ELEVENLABS_API_KEY to the API environment." });
-    return false;
-  }
-  return true;
-}
-
 async function readUpload(part: MultipartFile) {
   if (part.type !== "file") throw new Error("Expected an audio file.");
   const chunks: Buffer[] = [];
@@ -87,42 +72,6 @@ async function readUpload(part: MultipartFile) {
   const buffer = Buffer.concat(chunks);
   if (!buffer.length) throw new Error("The uploaded audio file is empty.");
   return { buffer, filename: part.filename || "recording.m4a", mimetype: part.mimetype || "application/octet-stream" };
-}
-
-async function openAiTranscribe(buffer: Buffer, filename: string, mimetype: string, language: string) {
-  const form = new FormData();
-  form.append("file", new Blob([new Uint8Array(buffer)], { type: mimetype }), filename);
-  form.append("model", env.OPENAI_TRANSCRIPTION_MODEL);
-  if (language !== "auto") form.append("language", language);
-  const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}` },
-    body: form,
-  });
-  const data = await response.json() as { text?: string; error?: { message?: string } };
-  if (!response.ok || !data.text) throw new Error(data.error?.message || "Transcription failed.");
-  return data.text;
-}
-
-async function openAiTranslate(text: string, sourceLanguage: string, targetLanguage: string) {
-  const sourceName = languages.find((item) => item.code === sourceLanguage)?.name ?? sourceLanguage;
-  const targetName = languages.find((item) => item.code === targetLanguage)?.name ?? targetLanguage;
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: env.OPENAI_TRANSLATION_MODEL,
-      temperature: 0.2,
-      messages: [
-        { role: "system", content: `Translate the user's message from ${sourceName} to ${targetName}. Preserve meaning, tone, names, numbers and intent. Return only the translated text; do not explain.` },
-        { role: "user", content: text },
-      ],
-    }),
-  });
-  const data = await response.json() as { choices?: Array<{ message?: { content?: string } }>; error?: { message?: string } };
-  const translated = data.choices?.[0]?.message?.content?.trim();
-  if (!response.ok || !translated) throw new Error(data.error?.message || "Translation failed.");
-  return translated;
 }
 
 async function elevenLabsClone(buffer: Buffer, filename: string, mimetype: string, name: string) {
@@ -141,30 +90,6 @@ async function elevenLabsClone(buffer: Buffer, filename: string, mimetype: strin
     throw new Error(detail || "Voice profile creation failed.");
   }
   return data.voice_id;
-}
-
-async function elevenLabsSpeak(text: string, voiceId: string) {
-  const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
-    method: "POST",
-    headers: { "xi-api-key": env.ELEVENLABS_API_KEY!, "Content-Type": "application/json", Accept: "audio/mpeg" },
-    body: JSON.stringify({
-      text,
-      model_id: env.ELEVENLABS_MODEL_ID,
-      // Favor the enrolled speaker identity. Keep style exaggeration at zero so
-      // the model does not impose a new performance style over the reference voice.
-      voice_settings: {
-        stability: env.ELEVENLABS_STABILITY,
-        similarity_boost: env.ELEVENLABS_SIMILARITY_BOOST,
-        style: env.ELEVENLABS_STYLE,
-        use_speaker_boost: env.ELEVENLABS_SPEAKER_BOOST,
-      },
-    }),
-  });
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail.slice(0, 500) || "Voice generation failed.");
-  }
-  return Buffer.from(await response.arrayBuffer());
 }
 
 app.get("/health", async () => ({
@@ -240,10 +165,12 @@ async function elevenLabsRequest<T>(path: string, init: RequestInit = {}): Promi
     ...init,
     headers: { "xi-api-key": env.ELEVENLABS_API_KEY!, ...(init.headers || {}) },
   });
-  const data = await response.json() as T & { detail?: { message?: string } | string; error?: { message?: string } };
-  if (!response.ok) {
-    const detail = typeof data.detail === "string" ? data.detail : data.detail?.message;
-    throw new Error(detail || data.error?.message || `ElevenLabs request failed (${response.status}).`);
+  const raw = await response.text();
+  let data: (T & { detail?: { message?: string } | string; error?: { message?: string } }) | undefined;
+  try { data = raw ? JSON.parse(raw) as T & { detail?: { message?: string } | string; error?: { message?: string } } : undefined; } catch { /* retain provider status text below */ }
+  if (!response.ok || !data) {
+    const detail = typeof data?.detail === "string" ? data.detail : data?.detail?.message;
+    throw new Error(detail || data?.error?.message || raw.slice(0, 500) || `ElevenLabs request failed (${response.status}).`);
   }
   return data;
 }
@@ -284,16 +211,16 @@ async function processDubbingJob(job: DubbingJob, upload: { buffer: Buffer; file
       );
       languageStatus = current.status;
       outputUrl = current.outputs?.lossless_audio;
-      if (languageStatus === "failed") throw new Error(current.error?.message || "Translated voice generation failed.");
+      if (languageStatus === "failed") throw new Error(current.error?.message || "Translated voice generation failed.");\n      if (languageStatus === "stale") throw new Error("The translation became outdated before audio was downloaded. Please try again.");
     }
     if (languageStatus !== "completed" || !outputUrl) throw new Error("Voice generation timed out. Please try again.");
 
-    const audioResponse = await fetch(outputUrl);
+    const audioResponse = await fetch(outputUrl, { signal: AbortSignal.timeout(60_000) });
     if (!audioResponse.ok) throw new Error("Could not retrieve the completed translated audio.");
-    const wavAudio = Buffer.from(await audioResponse.arrayBuffer());
+    const wavAudio = Buffer.from(await audioResponse.arrayBuffer());\n    if (!wavAudio.length || wavAudio.length > 100 * 1024 * 1024) throw new Error("The generated audio is empty or exceeds the 100 MB processing limit.");
     const voiceNoteAudio = await convertWavToOggOpus(wavAudio);
     const previewId = randomUUID();
-    audioJobs.set(previewId, { buffer: voiceNoteAudio, contentType: "audio/ogg; codecs=opus", expiresAt: Date.now() + 30 * 60 * 1000 });
+    audioJobs.set(previewId, { buffer: voiceNoteAudio, contentType: "audio/ogg; codecs=opus", expiresAt: Date.now() + 30 * 60 * 1000 });\n    for (const [key, item] of audioJobs) if (item.expiresAt <= Date.now()) audioJobs.delete(key);
     job.audioUrl = `/v1/voice/previews/${previewId}`;
     job.status = "completed";
   } catch (error) {
@@ -303,7 +230,7 @@ async function processDubbingJob(job: DubbingJob, upload: { buffer: Buffer; file
   }
 }
 
-app.post("/v1/voice/translate", async (request, reply) => {
+app.post("/v1/voice/translate", { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } }, async (request, reply) => {
   if (!env.ELEVENLABS_API_KEY) return reply.code(503).send({ error: "ELEVENLABS_NOT_CONFIGURED", message: "Add ELEVENLABS_API_KEY to the API environment." });
   try {
     let sourceLanguage = "auto";
@@ -314,7 +241,7 @@ app.post("/v1/voice/translate", async (request, reply) => {
       else if (part.fieldname === "sourceLanguage") sourceLanguage = String(part.value);
       else if (part.fieldname === "targetLanguage") targetLanguage = String(part.value);
     }
-    if (!upload) return reply.code(400).send({ error: "AUDIO_REQUIRED", message: "Record or select an audio message first." });
+    if (!upload) return reply.code(400).send({ error: "AUDIO_REQUIRED", message: "Record or select an audio message first." });\n    if (!upload.mimetype.startsWith("audio/")) return reply.code(415).send({ error: "UNSUPPORTED_MEDIA_TYPE", message: "Upload an audio recording in a supported audio format." });
     if (!/^[a-z]{2,3}(?:-[A-Z]{2})?$/.test(targetLanguage)) return reply.code(400).send({ error: "UNSUPPORTED_LANGUAGE", message: "Choose a valid target language code." });
     const id = randomUUID();
     const job: DubbingJob = {
