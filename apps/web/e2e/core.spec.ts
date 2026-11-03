@@ -75,6 +75,12 @@ test('document head exposes consistent crawlable branding and social previews', 
   const preview = await page.request.get('http://127.0.0.1:3000/og-image.png');
   expect(preview.ok()).toBeTruthy();
   expect(preview.headers()['content-type']).toContain('image/png');
+  const previewBytes = await preview.body();
+  expect(previewBytes.readUInt32BE(16)).toBe(1200);
+  expect(previewBytes.readUInt32BE(20)).toBe(630);
+  const appleIcon = await page.request.get('http://127.0.0.1:3000/apple-touch-icon.png');
+  expect(appleIcon.ok()).toBeTruthy();
+  expect(appleIcon.headers()['content-type']).toContain('image/png');
   const htmlResponse = await page.request.get('http://127.0.0.1:3000/');
   const documentHtml = await htmlResponse.text();
   expect(documentHtml).toContain('<noscript>');
