@@ -120,11 +120,16 @@ npm run typecheck
 
 GitHub Actions runs API and mobile TypeScript checks, API/web tests and builds, plus a Docker image build on pushes and pull requests to `main`.
 
-## Remaining production work
+## Remaining owner-controlled production checks
 
-- Apply and verify the migration on the selected Supabase project.
-- Configure the Render Free Blueprint and add both required secrets.
-- Add account deletion, recording retention and scheduled object cleanup.
-- Add billing-aware per-user quotas.
-- Finish WhatsApp Business sender authorization, persisted send jobs and Meta delivery webhooks.
-- Run real provider, API restart, worker crash/recovery, cross-user isolation and Android device tests.
+The live Render and Supabase services are deployed. Automated CI covers API/web tests, browser end-to-end tests, TypeScript checks and the Docker build. The remaining checks need the service owner's own accounts and provider credentials:
+
+- Configure Supabase Auth Site URL as `https://voicebridge-9unm.onrender.com` and add that URL to Redirect URLs. Enable Email sign-in and verify confirmation and reset email delivery. Use a suitable SMTP provider before inviting public users.
+- Create a test VoiceBridge account and verify signup, confirmation, sign-in, password reset, recovery and sign-out.
+- Run one short real ElevenLabs translation and listen to the generated OGG/Opus output. This uses provider credits; the app has not consumed a test translation during deployment verification.
+- Connect Meta WhatsApp Cloud API and/or Telegram by following [the social platform guide](./CONNECT_SOCIAL_PLATFORMS.md). Add the Supabase user UUID to `VOICEBRIDGE_ALLOWED_USER_IDS`.
+- Test each messaging channel using accounts and numbers controlled by the owner. Meta delivery-status webhooks and a complete delivery-status UI are still outstanding; provider acceptance is not proof of recipient delivery.
+- Publish the operator's verified support/privacy email, define an audio retention period, and implement self-service or documented deletion. The current deployment has no automatic audio expiry or self-service deletion.
+- Test recording, importing, playback and personal WhatsApp sharing on a physical Android device. Personal WhatsApp sharing does not guarantee the native voice-note bubble.
+
+Render Free may sleep when inactive; queued jobs remain in Supabase and resume when the service wakes. This is not an always-on worker arrangement.
