@@ -71,11 +71,25 @@ function extensionFor(mime: string) {
   return map[mime.toLowerCase()] || "audio";
 }
 
-app.get("/health", async () => ({
-  status: "ok", service: "voicebridge-api",
-  capabilities: { authentication: true, durableJobs: true, privateAudioStorage: true, audioToAudioDubbing: Boolean(env.ELEVENLABS_API_KEY) },
-  timestamp: new Date().toISOString(),
-}));
+app.get("/health", async (_request, reply) => {
+  const [{ error: databaseError }, { data: bucket, error: storageError }] = await Promise.all([
+    supabaseAdmin.from("voicebridge_jobs").select("id", { head: true, count: "exact" }),
+    supabaseAdmin.storage.getBucket(audioBucket),
+  ]);
+  const ready = !databaseError && !storageError && bucket?.public === false;
+  if (!ready) reply.code(503);
+  return {
+    status: ready ? "ok" : "degraded",
+    service: "voicebridge-api",
+    capabilities: {
+      authentication: Boolean(supabasePublic),
+      durableJobs: !databaseError,
+      privateAudioStorage: !storageError && bucket?.public === false,
+      audioToAudioDubbing: Boolean(env.ELEVENLABS_API_KEY),
+    },
+    timestamp: new Date().toISOString(),
+  };
+});
 app.get("/v1/languages", async () => ({ items: languages }));
 
 app.post("/v1/voice/translate", {
