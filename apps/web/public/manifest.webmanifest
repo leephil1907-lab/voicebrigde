@@ -1,0 +1,19 @@
+{
+  "id": "/",
+  "name": "VoiceBridge AI",
+  "short_name": "VoiceBridge",
+  "description": "Translate voice messages while keeping your recognizable voice, tone and expression.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f8f6",
+  "theme_color": "#193b32",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
