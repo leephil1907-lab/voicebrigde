@@ -190,8 +190,9 @@ async function processDubbingJob(job: DubbingJob, upload: { buffer: Buffer; file
     for (let attempt = 0; attempt < 120 && projectStatus !== "ready"; attempt++) {
       if (projectStatus === "failed") throw new Error("ElevenLabs could not prepare the source recording.");
       await new Promise((resolve) => setTimeout(resolve, 3000));
-      const current = await elevenLabsRequest<{ status: string }>(`/v1/dubbing/project/${encodeURIComponent(job.projectId)}`);
+      const current = await elevenLabsRequest<{ status: string; error?: { message?: string } | null }>(`/v1/dubbing/project/${encodeURIComponent(job.projectId)}`);
       projectStatus = current.status;
+      if (projectStatus === "failed") throw new Error(current.error?.message || "ElevenLabs could not prepare the source recording.");
     }
     if (projectStatus !== "ready") throw new Error("Source preparation timed out. Try a shorter or clearer recording.");
 
