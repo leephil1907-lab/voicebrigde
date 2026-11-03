@@ -61,8 +61,9 @@ async function convertWavToOggOpus(wav: Buffer): Promise<Buffer> {
 }
 
 async function updateJob(id: string, patch: Record<string, unknown>) {
-  const { error } = await supabaseAdmin.from("voicebridge_jobs").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id).eq("locked_by", workerId);
+  const { data, error } = await supabaseAdmin.from("voicebridge_jobs").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id).eq("locked_by", workerId).select("id").maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error("Worker lease was lost; this worker no longer owns the job.");
 }
 
 async function runJob(job: VoiceJob) {
