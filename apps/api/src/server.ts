@@ -62,7 +62,12 @@ await app.register(helmet, {
     },
   },
 });
-await app.register(cors, { origin: env.CORS_ORIGIN.split(",").map((v) => v.trim()), credentials: true });
+const allowedOrigins = new Set([...env.CORS_ORIGIN.split(",").map((v) => v.trim()).filter(Boolean), process.env.RENDER_EXTERNAL_URL].filter((value): value is string => Boolean(value)));
+await app.register(cors, { origin: (origin, callback) => {
+  // Allow same-origin Render hosting automatically, plus explicitly configured local/custom origins.
+  if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+  return callback(new Error("Origin is not allowed by VoiceBridge CORS."), false);
+}, credentials: true });
 await app.register(rateLimit, { max: 30, timeWindow: "1 minute" });
 await app.register(multipart, { limits: { fileSize: env.MAX_AUDIO_BYTES, files: 1, fields: 8 } });
 
