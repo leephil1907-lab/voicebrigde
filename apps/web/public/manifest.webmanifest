@@ -1,6 +1,6 @@
 {
   "id": "/",
-  "name": "VoiceBridge AI",
+  "name": "VoiceBridge",
   "short_name": "VoiceBridge",
   "description": "Translate voice messages while keeping your recognizable voice, tone and expression.",
   "start_url": "/",
