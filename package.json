@@ -18,7 +18,8 @@
     "typecheck:mobile": "npm run typecheck --workspace @voicebridge/mobile",
     "test:web": "npm run test --workspace @voicebridge/web",
     "test:e2e:web": "npm run test:e2e --workspace @voicebridge/web",
-    "test:api": "npm run test --workspace @voicebridge/api"
+    "test:api": "npm run test --workspace @voicebridge/api",
+    "start:render": "node scripts/start-render-free.mjs"
   },
   "engines": {
     "node": ">=20"
