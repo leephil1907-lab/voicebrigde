@@ -113,3 +113,31 @@ test('desktop keeps the full sidebar and hides the mobile tab bar', async ({ pag
   const widths = await page.evaluate(() => ({ viewport: window.innerWidth, document: document.documentElement.scrollWidth }));
   expect(widths.document).toBeLessThanOrEqual(widths.viewport);
 });
+
+
+test('responsive layouts fit compact phones, tablets and desktop widths', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 320, height: 780 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  await setup(page);
+  await page.goto('/');
+  for (const width of [320, 360, 375, 390, 430, 600, 768, 800]) {
+    await page.setViewportSize({ width, height: 844 });
+    const dimensions = await page.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      document: document.documentElement.scrollWidth,
+    }));
+    expect(dimensions.document, `horizontal overflow at ${width}px`).toBeLessThanOrEqual(dimensions.viewport);
+    await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toBeVisible();
+  }
+  for (const width of [801, 900, 1024, 1280, 1440, 1920]) {
+    await page.setViewportSize({ width, height: 900 });
+    const dimensions = await page.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      document: document.documentElement.scrollWidth,
+    }));
+    expect(dimensions.document, `horizontal overflow at ${width}px`).toBeLessThanOrEqual(dimensions.viewport);
+    await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toBeHidden();
+  }
+  await context.close();
+});
