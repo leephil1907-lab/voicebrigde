@@ -41,7 +41,8 @@ export default function HomeScreen() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Voice profile creation failed.");
       setVoiceId(data.voiceId);
-      Alert.alert("Voice profile created", "Your voice profile is ready. Record a message and translate it.");
+      setRecordingUri(null);
+      Alert.alert("Voice profile created", "Your reference voice is enrolled. Now record a separate message to translate with this same voice.");
     } catch (error) {
       Alert.alert("Voice profile error", error instanceof Error ? error.message : "Check your API connection and provider key.");
     } finally { setBusy(false); }
@@ -130,7 +131,7 @@ export default function HomeScreen() {
           </View>
 
           <Text style={styles.recordStatus}>
-            {recorderState.isRecording ? "Recording your voice…" : recordingUri ? "Recording saved on this device" : "Tap below to start recording"}
+            {recorderState.isRecording ? "Recording your voice…" : recordingUri ? "Recording saved on this device" : voiceId ? "Record a message; it will use your enrolled reference voice" : "Tap below to record your 1–2 minute voice sample"}
           </Text>
 
           <Pressable onPress={toggleRecording} style={({ pressed }) => [styles.recordButton, pressed && styles.pressed]}>
@@ -150,7 +151,7 @@ export default function HomeScreen() {
 
           <View style={styles.voiceSetup}>
             <Text style={styles.sectionLabel}>YOUR CLONED VOICE</Text>
-            <Text style={styles.voiceHint}>{voiceId ? "Voice profile connected" : "Create a voice profile from a clear recording (ideally 1–2 minutes)."}</Text>
+            <Text style={styles.voiceHint}>{voiceId ? "Voice profile connected" : "Record 1–2 minutes of clear, single-speaker speech in a quiet room. This becomes the reference voice."}</Text>
             <Pressable onPress={() => setVoiceConsent(!voiceConsent)} style={styles.consentRow}>
               <View style={[styles.consentBox, voiceConsent && styles.consentBoxActive]}>{voiceConsent ? <Text style={styles.consentTick}>✓</Text> : null}</View>
               <Text style={styles.consentText}>This is my voice, or I have explicit permission to clone it.</Text>
