@@ -153,3 +153,119 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior:auto !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
 }
+
+
+/* Responsive layout pass: desktop workspace, tablet flow and thumb-friendly mobile navigation. */
+.app-main { min-width: 0; overflow-x: clip; }
+.content-wrap, .secondary-page { width: 100%; min-width: 0; }
+.workflow-grid, .workflow-left, .workflow-right, .secondary-grid, .settings-grid { min-width: 0; }
+.work-card, .quick-card, .info-card { min-width: 0; }
+.audio-player, .player-main, .result-info { min-width: 0; }
+.player-time { flex-shrink: 0; }
+.recipient-field, .select-field select { min-width: 0; }
+button, .button-primary, .button-outline, .upload-action { touch-action: manipulation; }
+.mobile-bottom-nav { display: none; }
+
+@media (min-width: 1440px) {
+  .workflow-grid { grid-template-columns: minmax(0,1.55fr) minmax(320px,.78fr); gap: 24px; }
+  .workflow-right { position: sticky; top: 96px; }
+  .content-wrap { padding-left: clamp(36px,3.2vw,58px); padding-right: clamp(36px,3.2vw,58px); }
+  .work-card { padding: 28px; }
+}
+@media (max-width: 1024px) and (min-width: 801px) {
+  .app-sidebar { width: 196px; padding-left: 13px; padding-right: 13px; }
+  .app-main { margin-left: 196px; width: calc(100% - 196px); }
+  .top-bar { padding-left: 22px; padding-right: 22px; }
+  .content-wrap { padding-left: 22px; padding-right: 22px; }
+  .workflow-grid { grid-template-columns: minmax(0,1fr); }
+  .workflow-right { grid-template-columns: repeat(2,minmax(0,1fr)); align-items: stretch; }
+  .quick-card { min-height: 100%; }
+  .page-heading h1 { font-size: clamp(36px,4.5vw,48px); }
+}
+@media (max-width: 800px) {
+  .app-main { padding-bottom: calc(82px + env(safe-area-inset-bottom)); }
+  .top-bar { height: 62px; padding-left: 15px; padding-right: 15px; }
+  .content-wrap { padding: 25px 16px 24px; }
+  .page-heading { gap: 12px; }
+  .page-heading > div { min-width: 0; }
+  .page-heading h1, .secondary-heading h1 { overflow-wrap: anywhere; }
+  .workflow-grid { gap: 15px; }
+  .workflow-left, .workflow-right { gap: 15px; }
+  .workflow-right { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .work-card { padding: 20px; }
+  .mobile-bottom-nav {
+    position: fixed; z-index: 30; left: 12px; right: 12px;
+    bottom: max(10px,env(safe-area-inset-bottom));
+    display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 5px;
+    padding: 7px; border: 1px solid rgba(219,231,220,.92); border-radius: 18px;
+    background: rgba(255,255,255,.94); backdrop-filter: blur(18px);
+    box-shadow: 0 12px 38px rgba(19,48,34,.16);
+  }
+  .mobile-bottom-nav button {
+    min-width: 0; min-height: 53px; border: 0; border-radius: 12px;
+    background: transparent; color: #789083; display: flex;
+    flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; font-size: 10px; font-weight: 800;
+    transition: background .2s ease,color .2s ease,transform .2s ease;
+  }
+  .mobile-bottom-nav button.active { background: #edf6e8; color: #285b42; }
+  .mobile-bottom-nav button:active { transform: scale(.97); }
+  .app-sidebar { z-index: 40; box-shadow: 18px 0 55px rgba(9,32,23,.22); }
+  .mobile-overlay { z-index: 39; }
+  .close-mobile { min-width: 40px; min-height: 40px; justify-content: center; align-items: center; }
+  .legal-links { padding-bottom: 16px; }
+}
+@media (max-width: 600px) {
+  .top-path { max-width: min(52vw,260px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .top-path span { margin: 0 5px; }
+  .top-actions { gap: 6px; }
+  .status-button { min-height: 38px; }
+  .top-signin { min-height: 40px; }
+  .page-heading { flex-direction: column; align-items: flex-start; margin-bottom: 20px; }
+  .page-heading h1, .secondary-heading h1 { font-size: clamp(34px,9vw,43px); }
+  .page-heading p, .secondary-heading p { max-width: 34rem; font-size: 12px; }
+  .new-note { align-self: flex-start; }
+  .hero-feature-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .hero-feature-row span { justify-content: flex-start; min-width: 0; line-height: 1.35; }
+  .hero-feature-row span:last-child { grid-column: 1 / -1; }
+  .workflow-right { grid-template-columns: minmax(0,1fr); }
+  .card-header { align-items: flex-start; flex-wrap: wrap; }
+  .limit-badge { margin-left: 50px; }
+  .language-grid { grid-template-columns: minmax(0,1fr); gap: 7px; }
+  .language-direction { justify-self: center; height: 22px; transform: rotate(90deg); }
+  .select-field { min-height: 46px; }
+  .recipient-field { min-height: 46px; }
+  .button-primary, .button-outline, .upload-action { min-height: 44px; }
+  .translate-footer { align-items: stretch; }
+  .translate-footer .button-primary { width: 100%; justify-content: center; }
+  .result-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .result-actions > * { min-width: 0; justify-content: center; }
+  .result-info { align-items: flex-start; flex-wrap: wrap; }
+  .alert-banner { align-items: flex-start; }
+  .alert-banner button { margin-left: 28px; }
+  .secondary-grid { gap: 14px; }
+  .settings-grid { grid-template-columns: minmax(0,1fr); }
+  .settings-card { padding: 19px; }
+  .toast { left: 14px; right: 14px; bottom: calc(82px + env(safe-area-inset-bottom)); max-width: none; }
+}
+@media (max-width: 390px) {
+  .top-bar { padding-left: 11px; padding-right: 11px; gap: 8px; }
+  .top-path { max-width: 45vw; font-size: 9px; }
+  .top-actions { gap: 4px; }
+  .top-signin { padding: 8px; font-size: 9px; }
+  .content-wrap { padding-left: 12px; padding-right: 12px; }
+  .work-card { padding: 16px; border-radius: 13px; }
+  .section-heading { gap: 8px; }
+  .step-icon { width: 35px; height: 35px; }
+  .section-heading h2, .send-heading h2 { font-size: 14px; }
+  .limit-badge { margin-left: 43px; font-size: 8px; }
+  .hero-feature-row span { font-size: 8px; padding: 7px; }
+  .result-actions { grid-template-columns: minmax(0,1fr); }
+  .mobile-bottom-nav { left: 8px; right: 8px; bottom: max(7px,env(safe-area-inset-bottom)); }
+}
+@media (hover: hover) and (pointer: fine) {
+  .mobile-bottom-nav { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .mobile-bottom-nav { animation: vb-enter .35s ease both; }
+}
