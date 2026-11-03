@@ -40,3 +40,5 @@ services:
         value: "20971520"
       - key: MAX_AUDIO_SECONDS
         value: "120"
+      - key: MAX_TRANSLATIONS_PER_USER_PER_DAY
+        value: "3"
