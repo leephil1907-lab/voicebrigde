@@ -27,7 +27,8 @@ export default function App() {
   const [items, setItems] = useState<HistoryJob[]>([]), [historyLoading, setHistoryLoading] = useState(false), [historyError, setHistoryError] = useState("");
   const [readingFile, setReadingFile] = useState<File | null>(null), [readConsent, setReadConsent] = useState(false), [reading, setReading] = useState<Reading | null>(null), [readBusy, setReadBusy] = useState(false);
   const [channel, setChannel] = useState<"whatsapp_business" | "telegram">("whatsapp_business"), [recipient, setRecipient] = useState(""), [sendConsent, setSendConsent] = useState(false), [previewed, setPreviewed] = useState(false), [sending, setSending] = useState(false);
-  const [deliveryMessage, setDeliveryMessage] = useState("");\n  const [deliveryCapabilities, setDeliveryCapabilities] = useState<DeliveryCapabilities | null>(null);
+  const [deliveryMessage, setDeliveryMessage] = useState("");
+  const [deliveryCapabilities, setDeliveryCapabilities] = useState<DeliveryCapabilities | null>(null);
   const refreshConnection = useCallback(async () => { setConnection("checking"); try { const [c,h] = await Promise.all([apiRequest<RuntimeConfig>("/config"), fetchHealth()]); setConfig(c); setHealth(h); setConnection(c.supabaseUrl && c.supabasePublishableKey && Object.values(h.capabilities).every(Boolean) ? "ready" : "setup"); } catch { setConnection("offline"); } }, []);
   useEffect(() => { void refreshConnection(); }, [refreshConnection]);
   const auth = useSession(config);
