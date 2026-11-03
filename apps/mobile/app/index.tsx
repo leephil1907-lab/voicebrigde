@@ -55,11 +55,12 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    if (!supabase) return;
-    if (AppState.currentState === "active") supabase.auth.startAutoRefresh();
+    const client = supabase;
+    if (!client) return;
+    if (AppState.currentState === "active") client.auth.startAutoRefresh();
     const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") supabase.auth.startAutoRefresh();
-      else supabase.auth.stopAutoRefresh();
+      if (state === "active") client.auth.startAutoRefresh();
+      else client.auth.stopAutoRefresh();
     });
     return () => subscription.remove();
   }, []);
