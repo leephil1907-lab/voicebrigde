@@ -1,48 +1,47 @@
 # Voice translation engine
 
-## Live pipeline
+## Active translation pipeline
 
 1. The Android app records a source message with Expo Audio.
 2. The app uploads the recording as multipart form data to `POST /v1/voice/translate`.
-3. The API transcribes the audio with OpenAI Audio Transcriptions.
-4. The API translates the transcript with an OpenAI chat completion constrained to return only the translated text.
-5. The API generates speech with the exact enrolled ElevenLabs voice ID using the multilingual model and identity-focused voice settings.
-6. The API returns transcript, translated text and a short-lived preview URL. The app plays the preview with Expo Audio.
+3. The API creates an ElevenLabs Dubbing v2 project. Source-language detection is automatic when `sourceLanguage=auto` or the field is omitted.
+4. The API waits for source preparation, then creates a target language with `voice_settings.cloning_strength=8`.
+5. The API polls the language target until it completes, downloads the lossless WAV, and converts it to mono OGG/Opus with FFmpeg.
+6. The API retrieves the source and translated segment transcripts when available, then returns a completed job with a short-lived preview URL.
+7. The Android app displays the transcripts, plays the preview, and lets the user share the translated audio.
+
+Dubbing v2 is an audio-to-audio dubbing model designed to retain speaker identity, emotional tone and timing. It does not guarantee perfect preservation in every language or recording. A cloning strength of 8 favors resemblance and may reduce naturalness for languages with very different phonetics. The user must listen to the preview before sending.
+
+## API job lifecycle
+
+- `POST /v1/voice/translate` returns HTTP 202 with a job ID.
+- `GET /v1/voice/translations/:id` returns `queued`, `preparing`, `processing`, `completed`, or `failed`.
+- Completed jobs include source/translated transcript text and `audioUrl`.
+- Preview audio is served by `GET /v1/voice/previews/:id`.
+
+Jobs and audio previews are currently held in process memory. They disappear when the API restarts and do not work reliably across multiple API instances. This is a development implementation, not production-grade job storage. Before launch, move job state to a persistent database, audio to private object storage, and processing to a durable worker queue with retry/recovery semantics.
 
 ## Voice profile enrollment
 
-`POST /v1/voice-profiles` accepts multipart fields `name`, `consent=true` and one audio file. The server creates a voice through ElevenLabs Instant Voice Cloning and returns the provider voice ID. The app only submits a voice sample after the user confirms ownership or explicit permission.
+`POST /v1/voice-profiles` remains available as an optional legacy feature for explicit voice-profile enrollment. It is not required by the Dubbing v2 translation flow: Dubbing v2 uses the speaker in each source recording as its voice reference.
 
 ## Configuration
 
-Set `OPENAI_API_KEY` and `ELEVENLABS_API_KEY` in the API host environment. Never place either key in the mobile app. Voice generation always uses the enrolled `voiceId`; it does not select a stock voice. Defaults prioritize identity with `ELEVENLABS_SIMILARITY_BOOST=0.9`, `ELEVENLABS_SPEAKER_BOOST=true`, `ELEVENLABS_STYLE=0`, and `ELEVENLABS_STABILITY=0.55`. These settings are configurable from 0 to 1. Similarity boost and speaker boost favor resemblance; zero style exaggeration avoids adding an artificial performance style; stability balances consistent delivery with natural variation. The correct balance can vary by reference recording. ElevenLabs account access, plan limits, voice-cloning eligibility and language quality vary by account and voice.
+Set `ELEVENLABS_API_KEY` in the API host environment. Never place provider credentials in the mobile app. The API Dockerfile installs FFmpeg; local development environments must install FFmpeg separately or set `FFMPEG_PATH`.
 
-## Reference recording quality
+For the Android app, set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to the deployed HTTPS API URL or the development computer's LAN IP. Do not use `localhost` or `127.0.0.1` on a physical Android phone.
 
-For Instant Voice Cloning, capture about 1–2 minutes of clear, continuous speech from one speaker. Use a quiet room, keep the microphone distance consistent, avoid music and competing voices, and speak in the natural tone and cadence you want the clone to retain. The mobile flow uses the enrollment recording only to create the voice profile; record a separate message after enrollment so the reference sample is not accidentally treated as the message to translate. A clone preserves recognizable vocal characteristics, not the exact acoustics of the original recording. When generating another language, pronunciation and accent can vary with the language and model.
+## WhatsApp audio output
 
-## Current storage limitation
+The downloaded WAV is converted to mono OGG/Opus (libopus, 24 kbps, 48 kHz). This format is suitable for WhatsApp voice-message APIs. The WhatsApp Business adapter validates the OGG/Opus MIME type and sets `audio.voice=true` on its outgoing Cloud API message.
 
-Generated preview bytes are held in API process memory for 30 minutes. Previews disappear on process restart and are not durable across multiple API instances. Production deployment must move audio to private object storage with signed, expiring URLs, and persist voice profiles against authenticated user accounts. The current mobile app keeps the selected voice ID in screen state; it must be persisted securely after authentication is implemented.
+Personal WhatsApp is different: the Android sharesheet hands the OGG file to WhatsApp, but the public personal-account share interface does not guarantee a native push-to-talk voice-note bubble. It may appear as an audio attachment. A native voice-message send is supported by the official Business Cloud API from a registered Business number, not from the user's personal WhatsApp identity.
 
 ## Operational safeguards
 
 - Audio upload limit defaults to 20 MiB.
-- API rate limiting applies to generation endpoints.
+- Translation starts are limited to five per IP address per 15 minutes as a temporary abuse-control measure.
 - Provider credentials stay server-side.
-- Voice enrollment requires explicit consent.
-- Translated text is returned for review before the messaging/send milestone.
-- Sending is not triggered by generation; preview is a separate step.
-
-
-## Dubbing v2 primary pipeline
-
-The primary translation route uses ElevenLabs Dubbing Projects API (model_id=dubbing_v2), not the older transcript → text translation → cloned TTS chain. Each uploaded message becomes a dubbing project; the API waits for source preparation, creates the requested language target with voice_settings.cloning_strength=8, polls the target until completion, downloads the lossless WAV, and converts it to mono OGG/Opus with FFmpeg.
-
-The job lifecycle is asynchronous (queued → preparing → processing → completed / failed). The current implementation stores jobs and audio previews in process memory and is a development milestone, not a durable production queue. Production must move job state and audio objects to persistent storage and a retryable worker queue.
-
-Dubbing v2 is designed to retain speaker identity, emotion, timing and tone, but it cannot guarantee perfect preservation across every language, recording, or speaker. A cloning strength of 8 prioritizes similarity; it can make speech less natural in languages with very different phonetics. Always provide preview and quality checks before sending.
-
-## WhatsApp voice-note encoding
-
-The downloaded WAV is converted to mono OGG/Opus (libopus, 24 kbps, 48 kHz) for WhatsApp voice-message compatibility. The API Dockerfile installs FFmpeg. The WhatsApp Business adapter requires the audio/ogg; codecs=opus media type and sets audio.voice=true on the outgoing message. Personal WhatsApp uses Android's public sharesheet; this shares an audio file and does not guarantee a native PTT voice-note bubble.
+- Voice-profile enrollment requires explicit consent.
+- The user previews the generated audio before sharing.
+- Do not expose WhatsApp Business sending until user authentication, business sender authorization, persistent send jobs, idempotency, and Meta webhook delivery tracking are implemented.
