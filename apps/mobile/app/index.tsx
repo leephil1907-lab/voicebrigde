@@ -56,6 +56,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (!supabase) return;
+    if (AppState.currentState === "active") supabase.auth.startAutoRefresh();
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") supabase.auth.startAutoRefresh();
       else supabase.auth.stopAutoRefresh();
