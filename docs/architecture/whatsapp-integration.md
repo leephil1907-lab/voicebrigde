@@ -21,19 +21,17 @@ The API converts the Dubbing v2 WAV output into mono OGG/Opus using FFmpeg. The 
 4. Send an audio message referencing the returned media ID, with the voice-message flag enabled.
 5. Return the provider message ID for delivery-status tracking.
 
-The adapter accepts credentials as function arguments. It does not read credentials from the mobile app and it is not exposed as an unauthenticated HTTP route. With mono OGG/Opus audio and the Cloud API `audio.voice: true` flag, this is the supported route for a native WhatsApp voice-message presentation. The message is sent from the registered WhatsApp Business number and its business profile, not the user's personal WhatsApp number.
+The adapter accepts credentials as function arguments. It does not read credentials from the mobile app. The authenticated `POST /v1/voice/deliver` API route calls it only after checking the signed-in Supabase user against `VOICEBRIDGE_ALLOWED_USER_IDS`, confirming the translated job belongs to that user, and requiring explicit preview and recipient-consent confirmations. With mono OGG/Opus audio and the Cloud API `audio.voice: true` flag, this is the supported route for a native WhatsApp voice-message presentation. The message is sent from the registered WhatsApp Business number and its business profile, not the user's personal WhatsApp number.
 
-### Required production work before enabling Business sending
+### Remaining production work before general release
 
 - Complete Meta Business verification / WhatsApp Business Platform onboarding and register the sending phone number.
 - Configure a long-lived system-user access token with the required WhatsApp messaging permission, phone-number ID, WABA ID, and Graph API version in the server secret manager.
-- Add account authentication and authorization to VoiceBridge. A user must be linked to a business workspace and an authorized WhatsApp Business sender before a send route is exposed.
-- Add a persistent send-job record, idempotency key, recipient consent / policy checks, rate limits, and audit trail.
-- Add Meta webhook verification and message-status handling (sent, delivered, read, failed).
-- Convert provider output to mono OGG/Opus in the background audio worker before calling the adapter. The API container includes FFmpeg for this conversion. Do not send WAV/MP3 bytes while labelling them as OGG/Opus.
+- Add the Supabase user UUID of each approved operator to `VOICEBRIDGE_ALLOWED_USER_IDS`; this allowlist is checked on every send.
+- The API currently persists a `voicebridge_deliveries` record with an idempotency key and confirmation timestamps, then calls the provider synchronously. It records `accepted` or `unknown`; it does not yet have a durable asynchronous delivery worker or automatic retry queue.
+- Add Meta webhook verification (including request-signature validation) and message-status handling (sent, delivered, read, failed) correlated by provider message ID.
+- Convert provider output to mono OGG/Opus before calling the adapter. The API container includes FFmpeg for this conversion. Do not send WAV/MP3 bytes while labelling them as OGG/Opus.
 - Apply WhatsApp's customer-service window, template, opt-in, and messaging policies to the recipient and conversation context.
-
-The adapter is deliberately not wired to a public send endpoint yet: the current API does not have user authentication or business-account authorization. Exposing a send endpoint before those controls exist would let unauthenticated callers spend the connected business account's messaging quota.
 
 ## Shared translation flow
 
