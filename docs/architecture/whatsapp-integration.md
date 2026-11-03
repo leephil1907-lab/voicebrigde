@@ -4,11 +4,11 @@ VoiceBridge supports both personal WhatsApp and WhatsApp Business, but they are 
 
 ## 1. Personal WhatsApp (Android share hand-off)
 
-The mobile app downloads the translated preview into its private cache and calls Expo Sharing with the audio file URI and `audio/mpeg` MIME type. Android displays the system sharesheet; the user chooses WhatsApp, selects a conversation, and confirms sending.
+The API converts the Dubbing v2 WAV output into mono OGG/Opus using FFmpeg. The mobile app downloads that `.ogg` asset into its private cache and opens the Android sharesheet; the user chooses WhatsApp, selects a conversation, and confirms sending.
 
 - No personal WhatsApp password, session cookie, QR login, or unofficial automation is used.
 - VoiceBridge does not select a recipient or press Send on the user's behalf.
-- The share action is an audio-file hand-off. WhatsApp may display it as an audio attachment rather than a microphone-recorded native voice-note bubble. This must be checked on supported Android versions and WhatsApp releases.
+- **Do not promise a native voice-note bubble for personal WhatsApp.** Android's public share interface hands an audio file to WhatsApp; it does not expose a supported command to create a microphone-recorded PTT message inside a personal account. Even when the shared file is OGG/Opus, WhatsApp's presentation can vary by app version and share path. The sender remains the user's personal WhatsApp account, but native voice-note appearance is not guaranteed.
 - The translated preview remains available in VoiceBridge for replay before sharing.
 
 ## 2. WhatsApp Business (official Cloud API)
@@ -21,7 +21,7 @@ The mobile app downloads the translated preview into its private cache and calls
 4. Send an audio message referencing the returned media ID, with the voice-message flag enabled.
 5. Return the provider message ID for delivery-status tracking.
 
-The adapter accepts credentials as function arguments. It does not read credentials from the mobile app and it is not exposed as an unauthenticated HTTP route.
+The adapter accepts credentials as function arguments. It does not read credentials from the mobile app and it is not exposed as an unauthenticated HTTP route. With mono OGG/Opus audio and the Cloud API `audio.voice: true` flag, this is the supported route for a native WhatsApp voice-message presentation. The message is sent from the registered WhatsApp Business number and its business profile, not the user's personal WhatsApp number.
 
 ### Required production work before enabling Business sending
 
@@ -30,7 +30,7 @@ The adapter accepts credentials as function arguments. It does not read credenti
 - Add account authentication and authorization to VoiceBridge. A user must be linked to a business workspace and an authorized WhatsApp Business sender before a send route is exposed.
 - Add a persistent send-job record, idempotency key, recipient consent / policy checks, rate limits, and audit trail.
 - Add Meta webhook verification and message-status handling (sent, delivered, read, failed).
-- Convert provider output to OGG/Opus in the background audio worker before calling the adapter. Do not send MP3 bytes while labelling them as OGG/Opus.
+- Convert provider output to mono OGG/Opus in the background audio worker before calling the adapter. The API container includes FFmpeg for this conversion. Do not send WAV/MP3 bytes while labelling them as OGG/Opus.
 - Apply WhatsApp's customer-service window, template, opt-in, and messaging policies to the recipient and conversation context.
 
 The adapter is deliberately not wired to a public send endpoint yet: the current API does not have user authentication or business-account authorization. Exposing a send endpoint before those controls exist would let unauthenticated callers spend the connected business account's messaging quota.
@@ -45,6 +45,6 @@ The production translation engine should be audio-to-audio dubbing with automati
 
 ## Acceptance tests
 
-- Personal Android: audio opens in the system share chooser; WhatsApp is available when installed; the selected chat receives a playable audio file; verify whether the target app presents an attachment or native voice-note bubble.
-- Business: upload succeeds; audio is accepted as OGG/Opus; API returns a WhatsApp message ID; webhook status is correlated to the persisted send job.
+- Personal Android: audio opens in the system share chooser; WhatsApp is available when installed; the selected chat receives playable OGG/Opus audio. Record whether WhatsApp presents it as a native voice note or an attachment; never mark the personal integration as native-voice-note capable unless confirmed by repeatable device tests.
+- Business: upload succeeds; audio is accepted as mono OGG/Opus; the outgoing payload includes `audio.voice: true`; WhatsApp renders a voice-message bubble from the Business sender; API returns a WhatsApp message ID; webhook status is correlated to the persisted send job.
 - Both: recipient and target language are visible before sending; no send occurs during translation or preview; retries cannot create duplicate sends; provider errors are shown clearly.
