@@ -1,6 +1,5 @@
 FROM node:22-bookworm-slim
 
-ENV NODE_ENV=production
 WORKDIR /app
 
 RUN apt-get update \
@@ -14,6 +13,8 @@ COPY apps/mobile/package.json ./apps/mobile/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
 
 RUN npm ci
+
+ENV NODE_ENV=production
 
 COPY . .
 
