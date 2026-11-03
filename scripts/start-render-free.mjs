@@ -41,4 +41,4 @@ for (const child of children) {
     }
   });
 }
-console.info("VoiceBridge API and durable worker started in the same Render Free web service.");
+console.info("VoiceBridge API and durable worker started in the same Render web service.");
