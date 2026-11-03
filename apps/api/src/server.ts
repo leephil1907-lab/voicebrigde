@@ -70,6 +70,7 @@ async function readUpload(part: MultipartFile) {
   const chunks: Buffer[] = [];
   for await (const chunk of part.file) chunks.push(Buffer.from(chunk));
   const buffer = Buffer.concat(chunks);
+  if (part.file.truncated) throw new Error("The uploaded audio exceeds the configured file-size limit.");
   if (!buffer.length) throw new Error("The uploaded audio file is empty.");
   return { buffer, filename: part.filename || "recording.m4a", mimetype: part.mimetype || "application/octet-stream" };
 }
@@ -243,7 +244,7 @@ app.post("/v1/voice/translate", { config: { rateLimit: { max: 5, timeWindow: "15
       else if (part.fieldname === "targetLanguage") targetLanguage = String(part.value);
     }
     if (!upload) return reply.code(400).send({ error: "AUDIO_REQUIRED", message: "Record or select an audio message first." });\n    if (!upload.mimetype.startsWith("audio/")) return reply.code(415).send({ error: "UNSUPPORTED_MEDIA_TYPE", message: "Upload an audio recording in a supported audio format." });
-    if (!/^[a-z]{2,3}(?:-[A-Z]{2})?$/.test(targetLanguage)) return reply.code(400).send({ error: "UNSUPPORTED_LANGUAGE", message: "Choose a valid target language code." });
+    if (!languages.some((language) => language.code === targetLanguage)) return reply.code(400).send({ error: "UNSUPPORTED_LANGUAGE", message: "Choose a language currently enabled in VoiceBridge." });
     const id = randomUUID();
     const job: DubbingJob = {
       id, projectId: "", languageId: null, status: "queued",
