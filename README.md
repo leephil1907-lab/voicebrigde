@@ -96,3 +96,7 @@ Copy `apps/mobile/.env.example` to `apps/mobile/.env` and set the API URL, Supab
 ## Security
 
 Never commit real API keys, access tokens, voice samples, personal recordings, Supabase service-role keys, or WhatsApp credentials. Use environment variables and a secret manager.
+
+## Render deployment
+
+VoiceBridge is configured for one always-on Render Pro Docker web service running the API, React studio and durable worker together. See [the Render deployment guide](docs/RENDER_FREE_DEPLOYMENT.md). The existing Render service must be changed to the Pro instance type in its dashboard; changing `render.yaml` does not alter a service created outside a Blueprint.
