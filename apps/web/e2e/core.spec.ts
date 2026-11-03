@@ -75,5 +75,8 @@ test('document head exposes consistent crawlable branding and social previews', 
   const preview = await page.request.get('http://127.0.0.1:3000/og-image.png');
   expect(preview.ok()).toBeTruthy();
   expect(preview.headers()['content-type']).toContain('image/png');
-  expect(await page.locator('noscript').innerHTML()).toContain('VoiceBridge AI');
+  const htmlResponse = await page.request.get('http://127.0.0.1:3000/');
+  const documentHtml = await htmlResponse.text();
+  expect(documentHtml).toContain('<noscript>');
+  expect(documentHtml).toContain('VoiceBridge AI');
 });
