@@ -170,7 +170,7 @@ test('mobile navigation drawer opens and closes without horizontal overflow', as
   await page.goto('/');
   await page.getByRole('button', { name: 'Open navigation' }).click();
   await expect(page.locator('.app-sidebar')).toHaveClass(/open/);
-  await page.getByRole('button', { name: 'Close menu' }).click();
+  await page.locator('.app-sidebar').getByRole('button', { name: 'Close menu' }).click();
   await expect(page.locator('.app-sidebar')).not.toHaveClass(/open/);
   const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, document: document.documentElement.scrollWidth }));
   expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport);
