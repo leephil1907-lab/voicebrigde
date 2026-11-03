@@ -67,9 +67,9 @@ test('invalid credentials surface an error and do not sign in', async ({page}) =
 
 test('document head exposes consistent crawlable branding and social previews', async ({ page }) => {
   await page.goto('/');
-  await expect(page).toHaveTitle('VoiceBridge AI — Different language. Same you.');
+  await expect(page).toHaveTitle('VoiceBridge AI — Your voice, in every language.');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://voicebridge-81xs.onrender.com/');
-  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', 'VoiceBridge AI — Different language. Same you.');
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', 'VoiceBridge AI — Your voice, in every language.');
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'https://voicebridge-81xs.onrender.com/og-image.png');
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
   await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute('content', 'https://voicebridge-81xs.onrender.com/og-image.png');
