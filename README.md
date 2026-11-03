@@ -56,16 +56,14 @@ Configure `OPENAI_API_KEY` and `ELEVENLABS_API_KEY` on the API server. The synth
 8. Preview the result and require explicit approval.
 9. Send through a platform adapter and track the provider's response.
 
-## Messaging support
+## WhatsApp-first delivery
 
-| Platform | Initial delivery strategy | Native voice-note status |
-| --- | --- | --- |
-| WhatsApp personal | Android share/hand-off flow; investigate supported on-device options | Must be verified on real devices; no unofficial account automation |
-| WhatsApp Business | Official WhatsApp Business Platform adapter | Supported voice-message API flow, subject to account eligibility and policy |
-| Telegram | Bot API `sendVoice` adapter | Native voice message |
-| Other messengers | Adapter interface and Android share fallback | Per-platform verification required |
+Both WhatsApp paths are now represented in the implementation:
 
-A share-sheet hand-off may create an audio attachment rather than a microphone-recorded voice-note bubble. The app must label this honestly and must not claim native voice-note delivery unless the receiving platform confirms the supported message type.
+- **Personal WhatsApp:** the translated preview can be downloaded to the Android cache and shared through the native system sharesheet. The user selects WhatsApp, chooses the chat, and confirms sending. This is a file hand-off and may appear as an audio attachment rather than a microphone-style voice-note bubble; verify on real devices.
+- **WhatsApp Business:** `apps/api/src/messaging/whatsapp-business.ts` contains a server-side Cloud API adapter that uploads OGG/Opus audio and sends it as a voice-marked audio message. It is intentionally not exposed through an HTTP send route until VoiceBridge has authenticated users, business-account authorization, persistent send jobs, and webhook delivery tracking.
+
+See [the WhatsApp integration architecture](docs/architecture/whatsapp-integration.md) for provider setup and production acceptance tests. Personal sharing requires the Expo FileSystem and Sharing modules. Business sending requires an eligible Meta Business Platform account, server-side credentials, an authorized recipient, and audio-worker conversion to OGG/Opus.
 
 ## Technology baseline
 
