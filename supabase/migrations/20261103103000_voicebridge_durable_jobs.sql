@@ -29,7 +29,12 @@ create index if not exists voicebridge_jobs_user_created_idx
   on public.voicebridge_jobs (user_id, created_at desc);
 create index if not exists voicebridge_jobs_queue_idx
   on public.voicebridge_jobs (available_at, created_at)
-  where status in ('queued', 'processing');
+  where status = 'queued';
+create index if not exists voicebridge_jobs_expired_lease_idx
+  on public.voicebridge_jobs (locked_at)
+  where status = 'processing';
+
+grant usage on schema public to authenticated, service_role;
 
 alter table public.voicebridge_jobs enable row level security;
 revoke all on table public.voicebridge_jobs from anon, authenticated;
