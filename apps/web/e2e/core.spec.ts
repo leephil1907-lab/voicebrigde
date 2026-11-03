@@ -58,6 +58,16 @@ test('read a note sends only consented audio and displays English text', async (
   await expect(page.getByText('Hello',{exact:true})).toBeVisible(); await page.getByText('View original transcript',{exact:false}).click(); await expect(page.getByText('Bonjour',{exact:true})).toBeVisible();
 });
 
+test('language selectors display representative flags without changing language codes', async ({page}) => {
+  await setup(page); await page.goto('/');
+  const source = page.getByLabel('Spoken language'); const target = page.getByLabel('Translate into');
+  await expect(source.locator('option[value="auto"]')).toContainText('Detect automatically');
+  await expect(source.locator('option[value="en"]')).toHaveText('🇬🇧 English');
+  await expect(target.locator('option[value="fr"]')).toHaveText('🇫🇷 French · Français');
+  await target.selectOption('fr'); await expect(target).toHaveValue('fr');
+  await expect(page.getByText('Flags are representative; languages are spoken in many places.')).toBeVisible();
+});
+
 test('invalid credentials surface an error and do not sign in', async ({page}) => {
   await setup(page); await page.route('https://example.supabase.co/auth/v1/token**', route => route.fulfill({status:400,json:{error:'invalid_grant',error_description:'Invalid login credentials'}}));
   await page.goto('/'); await page.getByRole('button',{name:'Sign in',exact:false}).first().click();
@@ -70,12 +80,12 @@ test('document head exposes consistent crawlable branding and social previews', 
   await expect(page).toHaveTitle('VoiceBridge — Your voice, in every language.');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://voicebridge-81xs.onrender.com/');
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', 'VoiceBridge — Your voice, in every language.');
-  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'https://voicebridge-81xs.onrender.com/og-image.png');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'https://voicebridge-81xs.onrender.com/og-voicebridge.png');
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
-  await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute('content', 'https://voicebridge-81xs.onrender.com/og-image.png');
+  await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute('content', 'https://voicebridge-81xs.onrender.com/og-voicebridge.png');
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg');
   await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/apple-touch-icon.png');
-  const preview = await page.request.get('http://127.0.0.1:3000/og-image.png');
+  const preview = await page.request.get('http://127.0.0.1:3000/og-voicebridge.png');
   expect(preview.ok()).toBeTruthy();
   expect(preview.headers()['content-type']).toContain('image/png');
   const previewBytes = await preview.body();

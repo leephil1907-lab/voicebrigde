@@ -725,3 +725,5 @@ html:not([data-theme="dark"]) .mobile-bottom-nav button.active { background:#edf
 .sound-globe svg { animation:none; }
 @media (max-width:800px) { .mobile-bottom-nav { grid-template-columns:repeat(4,minmax(0,1fr)); } }
 @media (prefers-reduced-motion:reduce) { .top-bar .top-user { transition:none; } }
+.language-flag-note { margin: 10px 0 0; color: #65756a; font-size: 12px; line-height: 1.5; }
+html[data-theme="dark"] .language-flag-note { color: #acbbb0; }
