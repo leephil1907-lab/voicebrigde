@@ -29,6 +29,7 @@ const env = z.object({
   ELEVENLABS_API_KEY: z.string().optional(),
   MAX_AUDIO_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
   MAX_AUDIO_SECONDS: z.coerce.number().int().positive().max(3600).default(120),
+  MAX_TRANSLATIONS_PER_USER_PER_DAY: z.coerce.number().int().positive().max(100).default(3),
   WEB_DIST_PATH: z.string().optional(),
 }).parse(process.env);
 if (!supabasePublic) throw new Error("Set SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY for API token verification.");
@@ -127,6 +128,7 @@ app.get("/config", async (_request, reply) => {
     supabasePublishableKey: env.SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_ANON_KEY,
     maxAudioBytes: env.MAX_AUDIO_BYTES,
     maxAudioSeconds: env.MAX_AUDIO_SECONDS,
+    maxTranslationsPerDay: env.MAX_TRANSLATIONS_PER_USER_PER_DAY,
     targetLanguages: languages.map((language) => language.code),
     channels: { whatsapp: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_GRAPH_API_VERSION), telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN) },
   };
@@ -181,7 +183,17 @@ app.post("/v1/voice/translate", {
     const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
     const { count, error: quotaError } = await supabaseAdmin.from("voicebridge_jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", since);
     if (quotaError) throw quotaError;
-    if ((count || 0) >= 20) return reply.code(429).send({ error: "USER_QUOTA_EXCEEDED", message: "The current limit is 20 translations per hour." });
+    if ((count || 0) >= 20) return reply.code(429).send({ error: "USER_HOURLY_QUOTA_EXCEEDED", message: "The current limit is 20 translations per hour." });
+    const daySince = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count: dailyCount, error: dailyQuotaError } = await supabaseAdmin.from("voicebridge_jobs")
+      .select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", daySince);
+    if (dailyQuotaError) throw dailyQuotaError;
+    if ((dailyCount || 0) >= env.MAX_TRANSLATIONS_PER_USER_PER_DAY) {
+      return reply.code(429).send({
+        error: "DAILY_TRANSLATION_LIMIT",
+        message: `You've reached the current limit of ${env.MAX_TRANSLATIONS_PER_USER_PER_DAY} translations in 24 hours. Your allowance resets as earlier requests pass the 24-hour window.`,
+      });
+    }
 
     const id = randomUUID();
     inputPath = `${user.id}/${id}/source.${extensionFor(upload.mimetype)}`;
