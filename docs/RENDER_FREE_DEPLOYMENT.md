@@ -55,7 +55,7 @@ After Render reports the service as Live:
 1. Open the service URL. The VoiceBridge web studio should load.
 2. Open `/health`. A healthy response should report `status: "ok"`, with database and private storage capabilities enabled.
 3. Open `/config`. Confirm the Supabase URL and publishable key are present; secret values must never appear.
-4. Sign up and sign in with a test account.
+4. In Supabase **Authentication → URL Configuration**, set the Site URL to your actual Render URL (for example `https://voicebridge-9unm.onrender.com`) and add that origin or its `/**` path to Redirect URLs. In **Authentication → Sign In / Providers**, enable Email. If email confirmation is enabled, make sure mail delivery is configured; users must click the confirmation link before signing in. Supabase's default email service can have restrictions and low limits; configure a suitable SMTP provider for real users. Sign up with a real test email, confirm it if required, and sign in.
 5. Submit a short recording with voice-processing consent and a target language.
 6. Watch the job status until the worker completes it; listen to the returned preview.
 7. Check Render logs for both the API startup message and `VoiceBridge durable worker started`.

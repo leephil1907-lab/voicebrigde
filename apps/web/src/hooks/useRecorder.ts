@@ -33,7 +33,7 @@ export function useRecorder(maxSeconds: number, maxBytes: number) {
     contextRef.current = null;
   }, []);
 
-  const acceptBlob = useCallback(async (blob: Blob, name: string, origin: AudioClip["origin"]): Promise<string | null> => {
+  const acceptBlob = useCallback(async (blob: Blob, name: string, origin: AudioClip["origin"], generation: number): Promise<string | null> => {
     const format = audioFormat({ name, type: blob.type });
     const problem = validateAudioFile({ name, type: blob.type, size: blob.size }, maxBytes);
     if (problem || !format) return problem || "This audio format isn't supported.";
@@ -41,6 +41,7 @@ export function useRecorder(maxSeconds: number, maxBytes: number) {
       const audio = await inspectAudio(blob);
       if (audio.duration > maxSeconds + 0.5) return `Keep your voice note under ${maxSeconds} seconds. This one is ${Math.ceil(audio.duration)} seconds long.`;
       if (audio.duration < 0.5) return "That recording is a little too short. Try speaking for at least a second.";
+      if (!mountedRef.current || generation !== generationRef.current) return null;
       const normalized = new Blob([blob], { type: format.mime });
       const next: AudioClip = { blob: normalized, name, ...audio, url: URL.createObjectURL(normalized), origin };
       if (clipRef.current) URL.revokeObjectURL(clipRef.current.url);
@@ -61,7 +62,7 @@ export function useRecorder(maxSeconds: number, maxBytes: number) {
     setError(null);
     const format = audioFormat(file)!;
     const name = file.name.replace(/\.[^.]+$/, "") + "." + format.extension;
-    const failure = await acceptBlob(file, name, "upload");
+    const failure = await acceptBlob(file, name, "upload", generation);
     if (!mountedRef.current || generation !== generationRef.current) return false;
     setImporting(false);
     if (failure) { setError(failure); return false; }
@@ -109,7 +110,7 @@ export function useRecorder(maxSeconds: number, maxBytes: number) {
         cleanCapture();
         const format = audioFormat({ name: "recording", type: rawType }) || { mime: "audio/webm", extension: "webm" };
         const blob = new Blob(chunks, { type: format.mime });
-        const failure = await acceptBlob(blob, `voice-note-${new Date().toISOString().slice(0, 10)}.${format.extension}`, "microphone");
+        const failure = await acceptBlob(blob, `voice-note-${new Date().toISOString().slice(0, 10)}.${format.extension}`, "microphone", generation);
         if (!mountedRef.current || generation !== generationRef.current) return;
         setStatus("idle");
         if (failure) setError(failure);

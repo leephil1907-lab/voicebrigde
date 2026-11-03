@@ -20,6 +20,8 @@ jobs:
       - run: npm run test:web
       - run: npm run build:api
       - run: npm run build:web
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e:web
   mobile:
     runs-on: ubuntu-latest
     steps:

@@ -11,3 +11,7 @@ coverage/
 android/.gradle/
 ios/Pods/
 supabase/.temp/
+
+# Browser test artifacts
+playwright-report/
+test-results/

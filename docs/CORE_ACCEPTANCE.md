@@ -8,6 +8,10 @@ The web studio is an asynchronous voice-note workflow, not a live call. The core
 - Configure Supabase, ElevenLabs, FFmpeg and ffprobe using `WEB_SETUP.md`; run **all** migrations in timestamp order, including `20261103140000_safe_creation_recovery.sql`. Run both API and worker.
 - Use a fresh test account and notes from consenting speakers. Provider requests can incur charges, including when project creation succeeds but the response is lost. No credentials should be placed in browser code, git, or chat.
 
+## Browser regression tests
+
+Run `npx playwright install --with-deps chromium` followed by `npm run test:e2e:web`. The tests exercise registration with email confirmation, sign-in persistence and sign-out, failed sign-in, microphone recording, consent and a completed translation preview, plus incoming-note text. Provider responses and the microphone are **mocked** in this suite: it never creates a real account or spends provider credits. The real deployed site does not use the test mocks.
+
 ## Manual live acceptance (not yet run)
 
 1. Open the HTTPS site in a browser and sign up/sign in. Check the browser's microphone permission. Record a short English note, stop it, and listen to its local preview.

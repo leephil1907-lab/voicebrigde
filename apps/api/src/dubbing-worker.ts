@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { supabaseAdmin, audioBucket } from "./supabase.js";
 
 const apiKey = process.env.ELEVENLABS_API_KEY;
@@ -83,7 +83,7 @@ async function runJob(job: VoiceJob) {
       if (downloadError || !sourceFile) throw downloadError || new Error("Source recording was not found in private storage.");
       const sourceBuffer = Buffer.from(await sourceFile.arrayBuffer());
       const form = new FormData();
-      form.append("file", new Blob([new Uint8Array(sourceBuffer)], { type: sourceFile.type || "audio/mp4" }), "voice-message");
+      form.append("file", new Blob([new Uint8Array(sourceBuffer)], { type: sourceFile.type || "audio/mp4" }), basename(job.input_path));
       form.append("model_id", "dubbing_v2");
       form.append("reference", `VoiceBridge ${job.id}`);
       if (job.source_language) form.append("source_language", job.source_language);

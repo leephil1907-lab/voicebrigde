@@ -15,7 +15,7 @@ export function useSession(config: RuntimeConfig | null) {
     if (!client) { setReady(true); setSession(null); return; }
     let active = true;
     setReady(false);
-    void client.auth.getSession().then(({ data }) => { if (active) { setSession(data.session); setReady(true); } });
+    void client.auth.getSession().then(({ data }) => { if (active) { setSession(data.session); setReady(true); } }).catch(() => { if (active) { setSession(null); setReady(true); } });
     const { data: { subscription } } = client.auth.onAuthStateChange((event, next) => {
       if (!active) return;
       setSession(next);
@@ -32,5 +32,11 @@ export function useSession(config: RuntimeConfig | null) {
     return current.access_token;
   }, [client]);
 
-  return { client, session, ready, recovery, clearRecovery: () => setRecovery(false), getToken };
+  const signOut = useCallback(async () => {
+    if (!client) return;
+    const { error } = await client.auth.signOut();
+    if (error) throw error;
+  }, [client]);
+
+  return { client, session, ready, recovery, signOut, clearRecovery: () => setRecovery(false), getToken };
 }
