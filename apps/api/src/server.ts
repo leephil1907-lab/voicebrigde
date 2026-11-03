@@ -20,7 +20,7 @@ const env = z.object({
   ELEVENLABS_API_KEY: z.string().optional(),
   MAX_AUDIO_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
 }).parse(process.env);
-if (!env.SUPABASE_ANON_KEY && !env.SUPABASE_PUBLISHABLE_KEY) throw new Error("Set SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY.");
+if (!supabasePublic) throw new Error("Set SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY for API token verification.");
 
 declare module "fastify" { interface FastifyRequest { user: AuthenticatedUser | null } }
 
@@ -51,7 +51,7 @@ async function authenticate(request: FastifyRequest, reply: FastifyReply) {
   const header = request.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
   if (!token) return reply.code(401).send({ error: "AUTH_REQUIRED", message: "Sign in to use VoiceBridge." });
-  const { data, error } = await supabasePublic.auth.getUser(token);
+  const { data, error } = await supabasePublic!.auth.getUser(token);
   if (error || !data.user) return reply.code(401).send({ error: "INVALID_SESSION", message: "Your session is invalid or expired. Sign in again." });
   request.user = { id: data.user.id, email: data.user.email || undefined };
 }
