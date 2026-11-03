@@ -95,6 +95,14 @@ test('mobile layout uses compact navigation and keeps content within the viewpor
   await page.goto('/');
   const nav = page.getByRole('navigation', { name: 'Mobile navigation' });
   await expect(nav).toBeVisible();
+  const menuButton = page.getByRole('button', { name: 'Open navigation' });
+  await expect(menuButton).toBeVisible();
+  await menuButton.click();
+  await expect(page.locator('.app-sidebar')).toHaveClass(/open/);
+  await expect(page.locator('body')).toHaveCSS('overflow', 'hidden');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.app-sidebar')).not.toHaveClass(/open/);
+  await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
   const widths = await page.evaluate(() => ({ viewport: window.innerWidth, document: document.documentElement.scrollWidth }));
   expect(widths.document).toBeLessThanOrEqual(widths.viewport);
   await nav.getByRole('button', { name: 'Read note' }).click();
