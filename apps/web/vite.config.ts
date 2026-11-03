@@ -14,8 +14,9 @@ export default defineConfig(({ mode }) => {
     supabasePublishableKey: env.VITE_SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_PUBLISHABLE_KEY || "",
     maxAudioBytes: 20 * 1024 * 1024,
     maxAudioSeconds: 120,
+    maxTranslationsPerDay: 3,
     channels: { whatsapp: false, telegram: false },
-    targetLanguages: ["es", "fr", "pt", "de", "it", "ar", "hi", "ja", "ko", "zh", "nl", "ru", "tr"],
+    targetLanguages: ["en", "es", "fr", "pt", "de", "it", "ar", "zh", "ja", "ko", "ha", "yo", "sw", "hi", "nl", "ru", "tr", "ur"],
   };
   // Explicit allowlist: loadEnv reads server settings, but none are bundled or
   // returned here. Only the public Supabase URL and publishable key are public.
