@@ -110,7 +110,7 @@ export default function HomeScreen() {
       if (!response.ok) throw new Error(data.message || "Voice translation failed.");
       setTranslationStatus("Preparing the original speaker's translated voice…");
       let job = data;
-      for (let attempt = 0; attempt < 360; attempt++) {
+      for (let attempt = 0; attempt < 480; attempt++) {
         await new Promise((resolve) => setTimeout(resolve, 3000));
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         if (!currentSession) throw new Error("Your session expired. Sign in again.");
@@ -120,7 +120,17 @@ export default function HomeScreen() {
         job = statusData;
         if (job.status === "failed") throw new Error(job.error || "Voice translation failed.");
         if (job.status === "completed" && job.audioUrl) break;
-        setTranslationStatus(job.status === "preparing" ? "Detecting speech and preparing the source…" : "Translating while preserving the speaker's delivery…");
+        const stageMessages: Record<string, string> = {
+          queued: "Your recording is safely queued…",
+          downloading_source: "Preparing your recording…",
+          creating_dubbing_project: "Starting voice translation…",
+          preparing_source: "Detecting speech and preparing the source…",
+          creating_target_language: "Preparing the target language…",
+          translating_audio: "Translating while preserving the speaker's delivery…",
+          downloading_translation: "Finishing your translated voice message…",
+          retry_wait: "Recovering the translation job; it will retry automatically…",
+        };
+        setTranslationStatus(stageMessages[job.stage] || "Processing your translated voice message…");
       }
       if (job.status !== "completed" || !job.audioUrl) throw new Error("This translation is taking longer than expected. Please try again.");
       const url = job.audioUrl.startsWith("http") ? job.audioUrl : API_URL + job.audioUrl;
