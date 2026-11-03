@@ -22,16 +22,7 @@ services:
         sync: false
       - key: ELEVENLABS_API_KEY
         sync: false
-      - key: WHATSAPP_ACCESS_TOKEN
-        sync: false
-      - key: WHATSAPP_PHONE_NUMBER_ID
-        sync: false
-      - key: WHATSAPP_GRAPH_API_VERSION
-        sync: false
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-      - key: VOICEBRIDGE_ALLOWED_USER_IDS
-        sync: false
+      # Optional messaging variables can be added later in the Render dashboard.
       - key: SUPABASE_STORAGE_BUCKET
         value: voicebridge-private
       - key: FFMPEG_PATH

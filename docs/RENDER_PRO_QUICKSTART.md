@@ -19,7 +19,7 @@ This guide covers the **existing single-service Blueprint**. It runs the website
 
 ## Optional platform connections
 
-WhatsApp Business and Telegram are not connected automatically. Add provider-specific values only in Render's Environment settings when ready: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_GRAPH_API_VERSION`, `TELEGRAM_BOT_TOKEN`, and `VOICEBRIDGE_ALLOWED_USER_IDS`. Consult `docs/CONNECT_SOCIAL_PLATFORMS.md` or the repository's messaging guide for exact onboarding. This is a shared deployment credential model restricted by the user UUID allowlist; it is not personal WhatsApp linking or per-user OAuth. Business messaging policy and recipient consent apply. See provider docs and test with controlled recipients.
+WhatsApp Business and Telegram are not connected automatically and are intentionally omitted from the initial Blueprint prompts. Add provider-specific values only in Render's Environment settings when ready: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_GRAPH_API_VERSION`, `TELEGRAM_BOT_TOKEN`, and `VOICEBRIDGE_ALLOWED_USER_IDS`. Consult `docs/CONNECT_SOCIAL_PLATFORMS.md` or the repository's messaging guide for exact onboarding. This is a shared deployment credential model restricted by the user UUID allowlist; it is not personal WhatsApp linking or per-user OAuth. Business messaging policy and recipient consent apply. See provider docs and test with controlled recipients.
 
 ## Verification after deployment
 

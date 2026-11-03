@@ -608,3 +608,10 @@ body { font-size: 14px; -webkit-font-smoothing: antialiased; text-rendering: opt
   .mobile-overlay { animation: none; }
   .app-sidebar { transition: none; }
 }
+
+/* Keep the account action readable on compact phones without shrinking the workspace. */
+@media (max-width: 480px) {
+  .top-bar .status-button { font-size: 0; min-width: 36px; justify-content: center; }
+  .top-bar .top-signin { white-space: nowrap; flex-shrink: 0; }
+  .top-bar .top-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}

@@ -176,3 +176,21 @@ test('mobile navigation drawer opens and closes without horizontal overflow', as
   expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport);
   await context.close();
 });
+
+test('workspace and footer use the full available width on mobile and desktop', async ({browser}) => {
+  for (const width of [320, 390, 768, 1024, 1440]) {
+    const page = await browser.newPage({viewport:{width,height:850}});
+    await setup(page); await page.goto('/');
+    const layout = await page.evaluate(() => {
+      const main = document.querySelector('.app-main')!.getBoundingClientRect();
+      const footer = document.querySelector('.legal-links')!;
+      const sidebar = document.querySelector('.app-sidebar')!.getBoundingClientRect();
+      return { main: main.width, viewport: window.innerWidth, sidebar: sidebar.width, footerInside: !!footer.closest('.app-main'), overflow: document.documentElement.scrollWidth > window.innerWidth };
+    });
+    expect(layout.footerInside, `footer placement at ${width}`).toBeTruthy();
+    expect(layout.overflow, `overflow at ${width}`).toBeFalsy();
+    const expectedWidth = width <= 800 ? width : width - layout.sidebar;
+    expect(layout.main, `workspace width at ${width}`).toBeGreaterThanOrEqual(expectedWidth - 1);
+    await page.close();
+  }
+});
