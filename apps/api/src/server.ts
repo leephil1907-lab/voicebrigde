@@ -191,42 +191,113 @@ app.post("/v1/voice-profiles", async (request, reply) => {
   }
 });
 
+type DubbingJob = {
+  id: string; projectId: string; languageId: string | null;
+  status: "queued" | "preparing" | "processing" | "completed" | "failed";
+  sourceLanguage: string | null; targetLanguage: string;
+  audioUrl: string | null; error: string | null; createdAt: string;
+};
+const dubbingJobs = new Map<string, DubbingJob>();
+
+async function elevenLabsRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(`https://api.elevenlabs.io${path}`, {
+    ...init,
+    headers: { "xi-api-key": env.ELEVENLABS_API_KEY!, ...(init.headers || {}) },
+  });
+  const data = await response.json() as T & { detail?: { message?: string } | string; error?: { message?: string } };
+  if (!response.ok) {
+    const detail = typeof data.detail === "string" ? data.detail : data.detail?.message;
+    throw new Error(detail || data.error?.message || `ElevenLabs request failed (${response.status}).`);
+  }
+  return data;
+}
+
+async function processDubbingJob(job: DubbingJob, upload: { buffer: Buffer; filename: string; mimetype: string }) {
+  try {
+    job.status = "preparing";
+    const form = new FormData();
+    form.append("file", new Blob([new Uint8Array(upload.buffer)], { type: upload.mimetype }), upload.filename);
+    form.append("model_id", "dubbing_v2");
+    form.append("reference", `VoiceBridge ${job.id}`);
+    if (job.sourceLanguage) form.append("source_language", job.sourceLanguage);
+    const project = await elevenLabsRequest<{ project_id: string; status: string }>("/v1/dubbing/project", { method: "POST", body: form });
+    job.projectId = project.project_id;
+
+    let projectStatus = project.status;
+    for (let attempt = 0; attempt < 120 && projectStatus !== "ready"; attempt++) {
+      if (projectStatus === "failed") throw new Error("ElevenLabs could not prepare the source recording.");
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      const current = await elevenLabsRequest<{ status: string }>(`/v1/dubbing/project/${encodeURIComponent(job.projectId)}`);
+      projectStatus = current.status;
+    }
+    if (projectStatus !== "ready") throw new Error("Source preparation timed out. Try a shorter or clearer recording.");
+
+    job.status = "processing";
+    const language = await elevenLabsRequest<{ language_id: string }>(
+      `/v1/dubbing/project/${encodeURIComponent(job.projectId)}/language`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target_language: job.targetLanguage, voice_settings: { cloning_strength: 8 } }) },
+    );
+    job.languageId = language.language_id;
+
+    let languageStatus = "queued";
+    let outputUrl: string | undefined;
+    for (let attempt = 0; attempt < 180 && languageStatus !== "completed"; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+      const current = await elevenLabsRequest<{ status: string; outputs?: { lossless_audio?: string } | null; error?: { message?: string } | null }>(
+        `/v1/dubbing/project/${encodeURIComponent(job.projectId)}/language/${encodeURIComponent(job.languageId)}`,
+      );
+      languageStatus = current.status;
+      outputUrl = current.outputs?.lossless_audio;
+      if (languageStatus === "failed") throw new Error(current.error?.message || "Translated voice generation failed.");
+    }
+    if (languageStatus !== "completed" || !outputUrl) throw new Error("Voice generation timed out. Please try again.");
+
+    const audioResponse = await fetch(outputUrl);
+    if (!audioResponse.ok) throw new Error("Could not retrieve the completed translated audio.");
+    const audio = Buffer.from(await audioResponse.arrayBuffer());
+    const previewId = randomUUID();
+    audioJobs.set(previewId, { buffer: audio, contentType: "audio/wav", expiresAt: Date.now() + 30 * 60 * 1000 });
+    job.audioUrl = `/v1/voice/previews/${previewId}`;
+    job.status = "completed";
+  } catch (error) {
+    job.status = "failed";
+    job.error = error instanceof Error ? error.message : "Voice dubbing failed.";
+    app.log.error({ jobId: job.id, error }, "VoiceBridge dubbing job failed");
+  }
+}
+
 app.post("/v1/voice/translate", async (request, reply) => {
-  if (!requireProviderKeys(reply)) return;
+  if (!env.ELEVENLABS_API_KEY) return reply.code(503).send({ error: "ELEVENLABS_NOT_CONFIGURED", message: "Add ELEVENLABS_API_KEY to the API environment." });
   try {
     let sourceLanguage = "auto";
     let targetLanguage = "es";
-    let voiceId = "";
     let upload: { buffer: Buffer; filename: string; mimetype: string } | undefined;
     for await (const part of request.parts()) {
       if (part.type === "file") upload = await readUpload(part);
       else if (part.fieldname === "sourceLanguage") sourceLanguage = String(part.value);
       else if (part.fieldname === "targetLanguage") targetLanguage = String(part.value);
-      else if (part.fieldname === "voiceId") voiceId = String(part.value);
     }
     if (!upload) return reply.code(400).send({ error: "AUDIO_REQUIRED", message: "Record or select an audio message first." });
-    if (!languages.some((item) => item.code === targetLanguage)) return reply.code(400).send({ error: "UNSUPPORTED_LANGUAGE", message: "Choose a supported target language." });
-    if (!voiceId) return reply.code(400).send({ error: "VOICE_PROFILE_REQUIRED", message: "Create your authorized voice profile before generating speech." });
-
-    const transcript = await openAiTranscribe(upload.buffer, upload.filename, upload.mimetype, sourceLanguage);
-    const translatedText = await openAiTranslate(transcript, sourceLanguage === "auto" ? "en" : sourceLanguage, targetLanguage);
-    const generatedAudio = await elevenLabsSpeak(translatedText, voiceId);
+    if (!/^[a-z]{2,3}(?:-[A-Z]{2})?$/.test(targetLanguage)) return reply.code(400).send({ error: "UNSUPPORTED_LANGUAGE", message: "Choose a valid target language code." });
     const id = randomUUID();
-    audioJobs.set(id, { buffer: generatedAudio, contentType: "audio/mpeg", expiresAt: Date.now() + 30 * 60 * 1000 });
-    return reply.send({
-      id,
-      sourceLanguage,
-      targetLanguage,
-      transcript,
-      translatedText,
-      audioUrl: `/v1/voice/previews/${id}`,
-      audioMimeType: "audio/mpeg",
-      expiresInSeconds: 1800,
-    });
+    const job: DubbingJob = {
+      id, projectId: "", languageId: null, status: "queued",
+      sourceLanguage: sourceLanguage === "auto" ? null : sourceLanguage,
+      targetLanguage, audioUrl: null, error: null, createdAt: new Date().toISOString(),
+    };
+    dubbingJobs.set(id, job);
+    void processDubbingJob(job, upload);
+    return reply.code(202).send({ id, status: job.status, targetLanguage, pollUrl: `/v1/voice/translations/${id}` });
   } catch (error) {
     request.log.error(error);
-    return reply.code(502).send({ error: "VOICE_TRANSLATION_FAILED", message: error instanceof Error ? error.message : "Voice translation failed." });
+    return reply.code(502).send({ error: "VOICE_TRANSLATION_FAILED", message: error instanceof Error ? error.message : "Could not start voice translation." });
   }
+});
+
+app.get<{ Params: { id: string } }>("/v1/voice/translations/:id", async (request, reply) => {
+  const job = dubbingJobs.get(request.params.id);
+  if (!job) return reply.code(404).send({ error: "TRANSLATION_NOT_FOUND", message: "This translation job does not exist or has expired." });
+  return { id: job.id, status: job.status, targetLanguage: job.targetLanguage, sourceLanguage: job.sourceLanguage, audioUrl: job.audioUrl, error: job.error, createdAt: job.createdAt };
 });
 
 app.get<{ Params: { id: string } }>("/v1/voice/previews/:id", async (request, reply) => {
