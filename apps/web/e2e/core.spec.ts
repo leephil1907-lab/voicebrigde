@@ -153,3 +153,18 @@ test('mobile layout remains within narrow 320px devices', async ({ browser }) =>
   expect(widths.document).toBeLessThanOrEqual(widths.viewport);
   await context.close();
 });
+
+
+test('mobile navigation drawer opens and closes without horizontal overflow', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  await setup(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Open navigation' }).click();
+  await expect(page.locator('.app-sidebar')).toHaveClass(/open/);
+  await page.getByRole('button', { name: 'Close menu' }).click();
+  await expect(page.locator('.app-sidebar')).not.toHaveClass(/open/);
+  const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, document: document.documentElement.scrollWidth }));
+  expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport);
+  await context.close();
+});
