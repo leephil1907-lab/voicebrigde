@@ -39,10 +39,10 @@ The first live AI integration is now implemented in the API and Android UI:
 3. Upload a message recording to the Fastify API.
 4. Transcribe it with OpenAI Audio Transcriptions.
 5. Translate the transcript with OpenAI.
-6. Generate speech with the enrolled ElevenLabs voice using the multilingual model.
+6. Generate speech with the exact enrolled ElevenLabs voice ID using identity-focused similarity settings (high similarity, speaker boost on, style exaggeration off).
 7. Review the transcript and translated text, then play the generated audio preview.
 
-Configure `OPENAI_API_KEY` and `ELEVENLABS_API_KEY` on the API server. See [the voice engine guide](docs/architecture/voice-engine.md). This integration has not yet been validated on a physical device with live provider credentials. Preview audio and voice profile IDs are currently held in process memory / app screen state; durable storage and authenticated accounts are the next production-hardening steps.
+Configure `OPENAI_API_KEY` and `ELEVENLABS_API_KEY` on the API server. The synthesis defaults prioritize the cloned reference voice rather than a generic voice: similarity boost 0.9, speaker boost on, style 0, and stability 0.55. Use a clean 1–2 minute single-speaker enrollment sample, then record a separate message to translate. See [the voice engine guide](docs/architecture/voice-engine.md). This integration has not yet been validated on a physical device with live provider credentials. Preview audio and voice profile IDs are currently held in process memory / app screen state; durable storage and authenticated accounts are the next production-hardening steps.
 
 ## Planned message pipeline
 
