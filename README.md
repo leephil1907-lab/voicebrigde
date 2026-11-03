@@ -41,7 +41,7 @@ The primary voice engine now uses asynchronous ElevenLabs Dubbing v2 rather than
 6. Retrieve the source and translated segment transcripts when available.
 7. Preview the translated audio before choosing a delivery channel.
 
-Configure `ELEVENLABS_API_KEY` and ensure FFmpeg is installed (the API Dockerfile installs it). Dubbing v2 is designed to preserve speaker identity, emotional tone and timing, but results still require listening tests. See [the voice engine guide](docs/architecture/voice-engine.md) and [the durable jobs/auth architecture](docs/architecture/durable-jobs-and-auth.md).
+Configure `ELEVENLABS_API_KEY` and ensure FFmpeg is installed (the root `Dockerfile` installs it). Dubbing v2 is designed to preserve speaker identity, emotional tone and timing, but results still require listening tests. See [the voice engine guide](docs/architecture/voice-engine.md) and [the durable jobs/auth architecture](docs/architecture/durable-jobs-and-auth.md).
 
 ## WhatsApp-first delivery
 
@@ -69,7 +69,7 @@ For Render Free, the API and durable worker run as two child processes inside on
 - API: Node.js + Fastify + TypeScript
 - Database and authentication: Supabase Postgres + Auth + private Storage
 - Background processing: Postgres queue with atomic worker leases
-- Audio processing: FFmpeg in a separate server-side worker
+- Audio processing: FFmpeg in the co-hosted durable worker process
 - Speech, translation and voice generation: provider adapters; credentials remain server-side
 - Deployment: Render Free single web service (API + worker in one container); separate always-on worker can be added later on a paid plan
 
