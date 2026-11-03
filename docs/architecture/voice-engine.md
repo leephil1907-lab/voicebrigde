@@ -33,3 +33,16 @@ Generated preview bytes are held in API process memory for 30 minutes. Previews 
 - Voice enrollment requires explicit consent.
 - Translated text is returned for review before the messaging/send milestone.
 - Sending is not triggered by generation; preview is a separate step.
+
+
+## Dubbing v2 primary pipeline
+
+The primary translation route uses ElevenLabs Dubbing Projects API (model_id=dubbing_v2), not the older transcript → text translation → cloned TTS chain. Each uploaded message becomes a dubbing project; the API waits for source preparation, creates the requested language target with voice_settings.cloning_strength=8, polls the target until completion, downloads the lossless WAV, and converts it to mono OGG/Opus with FFmpeg.
+
+The job lifecycle is asynchronous (queued → preparing → processing → completed / failed). The current implementation stores jobs and audio previews in process memory and is a development milestone, not a durable production queue. Production must move job state and audio objects to persistent storage and a retryable worker queue.
+
+Dubbing v2 is designed to retain speaker identity, emotion, timing and tone, but it cannot guarantee perfect preservation across every language, recording, or speaker. A cloning strength of 8 prioritizes similarity; it can make speech less natural in languages with very different phonetics. Always provide preview and quality checks before sending.
+
+## WhatsApp voice-note encoding
+
+The downloaded WAV is converted to mono OGG/Opus (libopus, 24 kbps, 48 kHz) for WhatsApp voice-message compatibility. The API Dockerfile installs FFmpeg. The WhatsApp Business adapter requires the audio/ogg; codecs=opus media type and sets audio.voice=true on the outgoing message. Personal WhatsApp uses Android's public sharesheet; this shares an audio file and does not guarantee a native PTT voice-note bubble.
