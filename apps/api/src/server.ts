@@ -256,6 +256,13 @@ app.post("/v1/voice/translate", { config: { rateLimit: { max: 5, timeWindow: "15
     if (!upload) return reply.code(400).send({ error: "AUDIO_REQUIRED", message: "Record or select an audio message first." });
     if (!upload.mimetype.startsWith("audio/")) return reply.code(415).send({ error: "UNSUPPORTED_MEDIA_TYPE", message: "Upload an audio recording in a supported audio format." });
     if (!languages.some((language) => language.code === targetLanguage)) return reply.code(400).send({ error: "UNSUPPORTED_LANGUAGE", message: "Choose a language currently enabled in VoiceBridge." });
+    const now = Date.now();
+    for (const [jobId, existing] of dubbingJobs) if (now - Date.parse(existing.createdAt) > 24 * 60 * 60 * 1000) dubbingJobs.delete(jobId);
+    while (dubbingJobs.size >= 500) {
+      const oldestId = dubbingJobs.keys().next().value;
+      if (!oldestId) break;
+      dubbingJobs.delete(oldestId);
+    }
     const id = randomUUID();
     const job: DubbingJob = {
       id, projectId: "", languageId: null, status: "queued",
