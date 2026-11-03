@@ -50,7 +50,17 @@ language sql
 security definer
 set search_path = ''
 as $$
-  with candidate as (
+  with exhausted as (
+    update public.voicebridge_jobs
+    set status = 'failed', stage = 'failed',
+        error = coalesce(error, 'Worker lease expired after maximum attempts'),
+        locked_at = null, locked_by = null, updated_at = now()
+    where status = 'processing'
+      and locked_at < now() - interval '2 minutes'
+      and attempts >= max_attempts
+    returning id
+  ),
+  candidate as (
     select id
     from public.voicebridge_jobs
     where available_at <= now()
