@@ -13,7 +13,7 @@ services:
       - key: HOST
         value: 0.0.0.0
       - key: CORS_ORIGIN
-        value: https://voicebridge-9unm.onrender.com,http://localhost:8081,http://localhost:3000
+        value: http://localhost:8081,http://localhost:3000
       - key: SUPABASE_URL
         value: https://kggllnqkryquornprphu.supabase.co
       - key: SUPABASE_PUBLISHABLE_KEY
