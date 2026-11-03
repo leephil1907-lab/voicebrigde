@@ -7,7 +7,9 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "worker": "node dist/dubbing-worker.js",
+    "dev:worker": "tsx watch src/dubbing-worker.ts"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.2",
@@ -16,7 +18,8 @@
     "@fastify/rate-limit": "^10.2.1",
     "dotenv": "^16.4.7",
     "fastify": "^5.2.1",
-    "zod": "^3.24.2"
+    "zod": "^3.24.2",
+    "@supabase/supabase-js": "^2.58.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
