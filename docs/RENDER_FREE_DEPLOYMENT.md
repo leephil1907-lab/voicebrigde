@@ -1,6 +1,6 @@
-# Render Free deployment
+# Render Pro deployment
 
-This repository is prepared for a single Render Free Docker web service. It does not create or require a paid Render background worker.
+This repository is prepared for a single always-on Render Pro Docker web service. It does not create or require a paid Render background worker.
 
 ## What runs in the free service
 
@@ -17,7 +17,7 @@ The worker is a child process of the web service. The launcher stops both proces
 1. In Render, choose **New → Blueprint**.
 2. Connect the GitHub repository `leephil1907-lab/voicebrigde`.
 3. Select the `main` branch and use the repository's `render.yaml`.
-4. Keep the service plan set to **Free**.
+4. Select the **Pro** instance plan for the web service.
 5. During environment setup, enter the two required secret values below.
 6. Deploy the Blueprint.
 
@@ -34,9 +34,9 @@ Set these in the Render service's Environment page:
 
 The Blueprint already provides the Supabase project URL, publishable key, private storage bucket name, FFmpeg executable and upload limits. Never use the Supabase secret key or ElevenLabs key in a `VITE_` or `EXPO_PUBLIC_` variable. Do not commit either secret to GitHub.
 
-## Runtime behavior and free-tier limits
+## Runtime behavior and Pro instance
 
-Render Free web services can spin down after a period without inbound traffic. When the instance sleeps, both the API and worker stop. Supabase keeps queued jobs and source audio, and the worker can claim queued or recoverable jobs when the service starts again.
+A paid Pro web service remains running instead of entering the Free-instance sleep cycle. Because the API and durable worker run in the same container, the worker can continue polling Supabase while the service is live. Supabase remains the durable source of truth for queued and recoverable jobs.
 
 Consequences:
 
@@ -46,9 +46,9 @@ Consequences:
 - A single free instance runs both Node processes and FFmpeg, so avoid simultaneous heavy audio jobs.
 - This setup is intended for initial testing and low-volume use, not always-on production delivery.
 
-The API and worker share the same Render instance and environment variables. Do not add a second service unless you intentionally move to a plan that supports an always-on worker.
+The API and worker share the same Render instance and environment variables. Do not add a second worker service until measured queue depth, CPU, memory, or processing time justifies the extra monthly cost.
 
-## Deployment checks
+## Existing service plan change\n\nThe current VoiceBridge service was created directly in Render, not from a Render Blueprint. Changing `render.yaml` alone will therefore not change its live instance plan. In the Render dashboard, open the `voicebridge` web service, go to **Settings → Instance Type**, select **Pro**, and save the change. Verify the service details show `plan: pro` after Render applies it. The Blueprint file also declares `plan: pro` for future Blueprint-created deployments.\n\n## Deployment checks
 
 After Render reports the service as Live:
 
