@@ -56,6 +56,19 @@ export default function App() {
   }, [auth.session?.user.id, translation.reset, recorder.reset]);
   const flash = (text: string) => { setMessage(text); window.setTimeout(() => setMessage(""), 9000); };
   const go = (next: View) => { setView(next); setMenuOpen(false); };
+  useEffect(() => {
+    if (!menuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [menuOpen]);
   const start = async () => { if (!auth.session) { if (!auth.client) setConnectionOpen(true); else setAuthOpen(true); return; } if (!recorder.clip) return; await translation.start(recorder.clip, source, consent, target); };
   const newNote = () => { translation.reset(); recorder.reset(); setConsent(false); setDeliveryMessage(""); setView("studio"); };
   const download = async () => { if (!translation.job?.audioUrl) return; try { saveBlob(await downloadAudio(translation.job.audioUrl), `voicebridge-${translation.job.targetLanguage}.ogg`); } catch (error) { flash((error as Error).message); } };
@@ -83,10 +96,10 @@ export default function App() {
   const availableLanguages = LANGUAGES.filter(([v]) => !config?.targetLanguages?.length || config.targetLanguages.includes(v));
   return <div className="app-layout">
     {menuOpen && <button className="mobile-overlay" aria-label="Close menu" onClick={() => setMenuOpen(false)} />}
-    <aside className={`app-sidebar ${menuOpen ? "open" : ""}`}>
+    <aside className={`app-sidebar ${menuOpen ? "open" : ""}`} aria-label="VoiceBridge workspace sidebar">
       <div className="sidebar-top"><Brand /><button className="icon-button close-mobile" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X size={20} /></button></div>
       <div className="sidebar-section-label">WORKSPACE</div>
-      <nav className="app-nav" aria-label="Main navigation">
+      <nav id="primary-navigation" className="app-nav" aria-label="Main navigation">
         <button className={view === "studio" ? "active" : ""} onClick={() => go("studio")}><AudioLines size={19} /><span>Translate voice</span></button>
         <button className={view === "read" ? "active" : ""} onClick={() => go("read")}><BookOpenText size={19} /><span>Read a voice note</span></button>
         <button className={view === "settings" ? "active" : ""} onClick={() => go("settings")}><Settings2 size={19} /><span>Connections</span></button>
@@ -95,7 +108,7 @@ export default function App() {
       <div className="recent-items">{!auth.session ? <p>Sign in to access your voice notes.</p> : historyError ? <p>{historyError}</p> : !items.length ? <p>Your translated notes will appear here.</p> : items.slice(0,8).map(item => <button key={item.id} className={current?.id === item.id && view === "studio" ? "selected" : ""} onClick={() => { go("studio"); void translation.open(item.id); }}><span className="recent-mark"><AudioLines size={16} /></span><span><strong>{languageName(item.target_language)} voice note</strong><small>{statusLabel(item.status)} · {formatDate(item.created_at)}</small></span></button>)}</div>
       <div className="sidebar-bottom"><div className="sidebar-security"><ShieldCheck size={17} /><span>Private by design<small>Your voice, your control.</small></span></div><button className="sidebar-account" onClick={() => auth.session ? void auth.signOut().catch(error => flash(error instanceof Error ? error.message : "Could not sign out. Please try again.")) : auth.client ? setAuthOpen(true) : setConnectionOpen(true)}><span className="user-avatar">{auth.session?.user.email?.[0].toUpperCase() || "V"}</span><span className="account-details"><strong>{auth.session?.user.email || "Your account"}</strong><small>{auth.session ? "Sign out" : "Sign in or create account"}</small></span>{auth.session ? <LogOut size={16} /> : <ArrowRight size={16} />}</button></div>
     </aside>
-    <div className="app-main"><header className="top-bar"><div className="top-left"><button className="icon-button menu-mobile" onClick={() => setMenuOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><span className="top-path">Workspace <span>/</span> <strong>{view === "studio" ? "Translate voice" : view === "read" ? "Read a voice note" : "Connections"}</strong></span></div><div className="top-actions"><button className="status-button" onClick={() => go("settings")}><span className={`status-dot ${connection}`} />{connection === "ready" ? "Services configured" : connection === "checking" ? "Checking services" : "Connection needed"}</button>{!auth.session ? <button className="top-signin" onClick={() => auth.client ? setAuthOpen(true) : setConnectionOpen(true)}>Sign in <ArrowRight size={15} /></button> : <span className="top-user" title={auth.session.user.email}>{auth.session.user.email?.[0].toUpperCase() || "U"}</span>}</div></header>
+    <div className="app-main"><header className="top-bar"><div className="top-left"><button className="icon-button menu-mobile" onClick={() => setMenuOpen(true)} aria-label="Open navigation" aria-controls="primary-navigation" aria-expanded={menuOpen}><Menu size={21} /></button><span className="top-path">Workspace <span>/</span> <strong>{view === "studio" ? "Translate voice" : view === "read" ? "Read a voice note" : "Connections"}</strong></span></div><div className="top-actions"><button className="status-button" onClick={() => go("settings")} aria-label={connection === "ready" ? "Services configured. Open connections." : connection === "checking" ? "Checking services. Open connections." : "Connection needed. Open connections."} title="Open connection status"><span className={`status-dot ${connection}`} />{connection === "ready" ? "Services configured" : connection === "checking" ? "Checking services" : "Connection needed"}</button>{!auth.session ? <button className="top-signin" onClick={() => auth.client ? setAuthOpen(true) : setConnectionOpen(true)}>Sign in <ArrowRight size={15} /></button> : <span className="top-user" title={auth.session.user.email}>{auth.session.user.email?.[0].toUpperCase() || "U"}</span>}</div></header>
       <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
         <button className={view === "studio" ? "active" : ""} aria-current={view === "studio" ? "page" : undefined} onClick={() => go("studio")}><AudioLines size={19} /><span>Translate</span></button>
         <button className={view === "read" ? "active" : ""} aria-current={view === "read" ? "page" : undefined} onClick={() => go("read")}><BookOpenText size={19} /><span>Read note</span></button>
