@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#102b24"/><stop offset="1" stop-color="#28583f"/></linearGradient></defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g fill="none" stroke="#d5ef8b" opacity=".13"><circle cx="910" cy="300" r="120"/><circle cx="910" cy="300" r="190"/><circle cx="910" cy="300" r="260"/></g>
+  <rect x="82" y="76" width="88" height="88" rx="23" fill="#d5ef8b"/>
+  <g stroke="#193b32" stroke-width="6" stroke-linecap="round"><path d="M108 112v16M122 98v44M136 88v64M150 104v32"/></g>
+  <text x="194" y="132" fill="#f8faf5" font-family="Arial,sans-serif" font-size="30" font-weight="700" letter-spacing="3">VOICEBRIDGE AI</text>
+  <text x="82" y="290" fill="#f8faf5" font-family="Arial,sans-serif" font-size="68" font-weight="700">Different language.</text>
+  <text x="82" y="378" fill="#d5ef8b" font-family="Arial,sans-serif" font-size="78" font-weight="700">Same you.</text>
+  <text x="88" y="465" fill="#d3e0d4" font-family="Arial,sans-serif" font-size="27">Speak naturally. Translate your voice.</text>
+  <text x="88" y="510" fill="#d3e0d4" font-family="Arial,sans-serif" font-size="27">Preview it before you share.</text>
+  <rect x="820" y="214" width="270" height="172" rx="34" fill="#d5ef8b"/>
+  <g stroke="#193b32" stroke-width="9" stroke-linecap="round"><path d="M862 291v18M887 273v54M912 252v96M937 279v42M962 263v74M987 284v32M1012 271v58M1037 292v16"/></g>
+  <text x="88" y="585" fill="#a9c3af" font-family="Arial,sans-serif" font-size="16" font-weight="700" letter-spacing="2">VOICE TRANSLATION · MULTILINGUAL MESSAGING</text>
+</svg>
