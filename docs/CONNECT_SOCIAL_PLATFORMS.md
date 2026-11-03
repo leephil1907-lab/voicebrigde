@@ -1,8 +1,6 @@
 # Connect VoiceBridge to WhatsApp, Telegram and your website
 
-This guide is for the live deployment: https://voicebridge-9unm.onrender.com
-
-VoiceBridge is already hosted on Render and its API is connected to Supabase. Messaging platforms are connected through official server-side APIs. Do not paste tokens into the website's browser code, GitHub source, or a public chat.
+Use the new Render service URL after deployment; the previous Render service was deleted. VoiceBridge connects messaging platforms through official server-side APIs. Do not paste tokens into the website's browser code, GitHub source, or a public chat.
 
 ## 1. WhatsApp Business Cloud API
 
@@ -20,7 +18,7 @@ Official setup: [WhatsApp Cloud API getting started](https://developers.facebook
 
 ### Add credentials to Render
 
-Open [Render dashboard](https://dashboard.render.com/) → VoiceBridge service → Environment. Add these server-side variables:
+Open [Render dashboard](https://dashboard.render.com/) → the newly created VoiceBridge service → Environment. Add these server-side variables:
 
 | Variable | Value |
 |---|---|
