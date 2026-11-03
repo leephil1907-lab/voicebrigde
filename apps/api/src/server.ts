@@ -56,6 +56,14 @@ const languages = [
   { code: "zh", name: "Chinese", nativeName: "中文" },
   { code: "ja", name: "Japanese", nativeName: "日本語" },
   { code: "ko", name: "Korean", nativeName: "한국어" },
+  { code: "ha", name: "Hausa", nativeName: "Hausa" },
+  { code: "yo", name: "Yoruba", nativeName: "Yorùbá" },
+  { code: "sw", name: "Swahili", nativeName: "Kiswahili" },
+  { code: "hi", name: "Hindi", nativeName: "हिन्दी" },
+  { code: "nl", name: "Dutch", nativeName: "Nederlands" },
+  { code: "ru", name: "Russian", nativeName: "Русский" },
+  { code: "tr", name: "Turkish", nativeName: "Türkçe" },
+  { code: "ur", name: "Urdu", nativeName: "اردو" },
 ];
 const audioJobs = new Map<string, { buffer: Buffer; contentType: string; expiresAt: number }>();
 const voiceProfiles = new Map<string, { voiceId: string; name: string; createdAt: string }>();
