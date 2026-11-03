@@ -26,6 +26,7 @@ export default function HomeScreen() {
   const [translatedText, setTranslatedText] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [translationStatus, setTranslationStatus] = useState("");
   const player = useAudioPlayer(null);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
@@ -33,12 +34,9 @@ export default function HomeScreen() {
 
   async function createVoiceProfile() {
     if (!recordingUri) return Alert.alert("Voice sample required", "Record a clear sample of your voice first.");
-    if (!voiceConsent) return Alert.alert("Permission required", "Confirm that this is your voice or that you have explicit permission to clone it.");
     setBusy(true);
     try {
       const form = new FormData();
-      form.append("name", "My Voice");
-      form.append("consent", "true");
       form.append("file", { uri: recordingUri, name: "voice-sample.m4a", type: "audio/m4a" } as any);
       const response = await fetch(API_URL + "/v1/voice-profiles", { method: "POST", body: form });
       const data = await response.json();
@@ -53,25 +51,38 @@ export default function HomeScreen() {
 
   async function translateRecording() {
     if (!recordingUri) return;
-    if (!voiceId) return Alert.alert("Create your voice profile", "Record a clear voice sample, confirm permission, and create your voice profile first.");
     setBusy(true);
-    setTranscript(""); setTranslatedText(""); setPreviewUrl(null);
+    setTranscript(""); setTranslatedText(""); setPreviewUrl(null); setTranslationStatus("Uploading your recording…");
     try {
       const form = new FormData();
-      form.append("sourceLanguage", "en");
+      form.append("sourceLanguage", "auto");
       form.append("targetLanguage", selectedLanguage.code);
-      form.append("voiceId", voiceId);
       form.append("file", { uri: recordingUri, name: "voice-message.m4a", type: "audio/m4a" } as any);
       const response = await fetch(API_URL + "/v1/voice/translate", { method: "POST", body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Voice translation failed.");
-      setTranscript(data.transcript);
-      setTranslatedText(data.translatedText);
-      const url = API_URL + data.audioUrl;
+      setTranslationStatus("Preparing the original speaker's translated voice…");
+      let job = data;
+      for (let attempt = 0; attempt < 150; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        const statusResponse = await fetch(API_URL + "/v1/voice/translations/" + data.id);
+        const statusData = await statusResponse.json();
+        if (!statusResponse.ok) throw new Error(statusData.message || "Could not check translation status.");
+        job = statusData;
+        if (job.status === "failed") throw new Error(job.error || "Voice translation failed.");
+        if (job.status === "completed" && job.audioUrl) break;
+        setTranslationStatus(job.status === "preparing" ? "Detecting speech and preparing the source…" : "Translating while preserving the speaker's delivery…");
+      }
+      if (job.status !== "completed" || !job.audioUrl) throw new Error("This translation is taking longer than expected. Please try again.");
+      const url = API_URL + job.audioUrl;
+      setTranscript("Original speech detected automatically.");
+      setTranslatedText("Translated into " + selectedLanguage.label + ". Listen to the audio before sharing.");
       setPreviewUrl(url);
+      setTranslationStatus("Translation ready");
       await player.replace({ uri: url });
-      Alert.alert("Translation ready", "Review the transcript and translation, then play your generated voice preview.");
+      Alert.alert("Translation ready", "Your translated audio is ready. Preview it before sharing.");
     } catch (error) {
+      setTranslationStatus("");
       Alert.alert("Translation error", error instanceof Error ? error.message : "Check your API connection and provider keys.");
     } finally { setBusy(false); }
   }
@@ -85,7 +96,7 @@ export default function HomeScreen() {
       const localAudio = await File.downloadFileAsync(previewUrl, source);
       await Sharing.shareAsync(localAudio.uri, {
         dialogTitle: "Send translated voice message",
-        mimeType: "audio/mpeg",
+        mimeType: "audio/wav",
       });
     } catch (error) {
       Alert.alert("WhatsApp sharing", error instanceof Error ? error.message : "Could not prepare the translated audio for sharing.");
@@ -152,7 +163,7 @@ export default function HomeScreen() {
           </View>
 
           <Text style={styles.recordStatus}>
-            {recorderState.isRecording ? "Recording your voice…" : recordingUri ? "Recording saved on this device" : voiceId ? "Record a message; it will use your enrolled reference voice" : "Tap below to record your 1–2 minute voice sample"}
+            {recorderState.isRecording ? "Recording your voice…" : recordingUri ? "Recording saved on this device" : "Record a message in the language you speak; VoiceBridge detects it automatically"}
           </Text>
 
           <Pressable onPress={toggleRecording} style={({ pressed }) => [styles.recordButton, pressed && styles.pressed]}>
@@ -171,18 +182,11 @@ export default function HomeScreen() {
           </ScrollView>
 
           <View style={styles.voiceSetup}>
-            <Text style={styles.sectionLabel}>YOUR CLONED VOICE</Text>
-            <Text style={styles.voiceHint}>{voiceId ? "Voice profile connected" : "Record 1–2 minutes of clear, single-speaker speech in a quiet room. This becomes the reference voice."}</Text>
-            <Pressable onPress={() => setVoiceConsent(!voiceConsent)} style={styles.consentRow}>
-              <View style={[styles.consentBox, voiceConsent && styles.consentBoxActive]}>{voiceConsent ? <Text style={styles.consentTick}>✓</Text> : null}</View>
-              <Text style={styles.consentText}>This is my voice, or I have explicit permission to clone it.</Text>
-            </Pressable>
-            <Pressable onPress={createVoiceProfile} disabled={!recordingUri || busy || !!voiceId} style={[styles.secondaryButton, (!recordingUri || busy || !!voiceId) && styles.translateDisabled]}>
-              <Text style={styles.secondaryButtonText}>{voiceId ? "✓  Voice profile ready" : busy ? "Creating voice profile…" : "Create my voice profile"}</Text>
-            </Pressable>
+            <Text style={styles.sectionLabel}>VOICE PRESERVATION</Text>
+            <Text style={styles.voiceHint}>VoiceBridge uses the speaker in each recording as the voice reference. You do not need to enroll a separate voice profile for Dubbing v2.</Text>
           </View>
           <Pressable onPress={translateRecording} disabled={!recordingUri || busy} style={[styles.translateButton, (!recordingUri || busy) && styles.translateDisabled]}>
-            <Text style={styles.translateButtonText}>{busy ? "Processing your voice…" : "✦  Transcribe · Translate · Generate voice"}</Text>
+            <Text style={styles.translateButtonText}>{busy ? "Processing your voice…" : "✦  Translate voice · Preserve expression"}</Text>
           </Pressable>
           {(transcript || translatedText) ? <View style={styles.resultCard}>
             <Text style={styles.sectionLabel}>WHAT YOU SAID · ENGLISH</Text>
@@ -195,9 +199,9 @@ export default function HomeScreen() {
             <Pressable onPress={shareToWhatsApp} disabled={!previewUrl || sharing} style={[styles.shareButton, (!previewUrl || sharing) && styles.translateDisabled]}>
               <Text style={styles.shareButtonText}>{sharing ? "Preparing audio…" : "Share translated audio · WhatsApp / other apps"}</Text>
             </Pressable>
-            <Text style={styles.shareHint}>Personal WhatsApp opens the Android share sheet. Select WhatsApp and confirm the recipient. It may appear as an audio attachment, not a native microphone voice-note bubble.</Text>
+            <Text style={styles.shareHint}>Personal WhatsApp uses Android sharing and may send an audio attachment. A native WhatsApp voice-note bubble is not guaranteed through the personal-account share interface.</Text>
           </View> : null}
-          <Text style={styles.disclaimer}>AI processing requires API keys on your server. Preview links expire after 30 minutes in this build.</Text>
+          <Text style={styles.disclaimer}>{translationStatus || "Dubbing v2 automatically matches the speaker from each recording. Preview links expire after 30 minutes in this build."}</Text>
         </View>
 
         <View style={styles.sectionHeader}>
