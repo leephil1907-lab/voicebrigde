@@ -192,6 +192,10 @@ export default function HomeScreen() {
             <Pressable onPress={() => { if (previewUrl) { player.replace({ uri: previewUrl }); player.play(); } }} disabled={!previewUrl} style={styles.previewButton}>
               <Text style={styles.previewButtonText}>▶  Play cloned-voice preview</Text>
             </Pressable>
+            <Pressable onPress={shareToWhatsApp} disabled={!previewUrl || sharing} style={[styles.shareButton, (!previewUrl || sharing) && styles.translateDisabled]}>
+              <Text style={styles.shareButtonText}>{sharing ? "Preparing audio…" : "Share translated audio · WhatsApp / other apps"}</Text>
+            </Pressable>
+            <Text style={styles.shareHint}>Personal WhatsApp opens the Android share sheet. Select WhatsApp and confirm the recipient. It may appear as an audio attachment, not a native microphone voice-note bubble.</Text>
           </View> : null}
           <Text style={styles.disclaimer}>AI processing requires API keys on your server. Preview links expire after 30 minutes in this build.</Text>
         </View>
