@@ -491,3 +491,120 @@ dialog.modal { overscroll-behavior: contain; max-height: min(90dvh, 820px); }
   .sound-globe svg, .sound-globe-orbit, .recorder-area.recording .recorder-wave { animation: none !important; }
   .hero-feature-row span, .status-button { transition: none !important; }
 }
+
+
+/* Final responsive and accessibility refinement — desktop, tablet and touch devices. */
+:root {
+  --vb-font-body: "Manrope Variable", Manrope, system-ui, sans-serif;
+  --vb-font-display: "Instrument Serif", Georgia, serif;
+}
+html { font-family: var(--vb-font-body); }
+body { font-size: 14px; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+.page-heading h1, .secondary-heading h1 { font-size: clamp(38px, 4vw, 60px); line-height: 1.02; letter-spacing: -.06em; }
+.page-heading p, .secondary-heading p { font-size: 14px; line-height: 1.7; max-width: 58ch; }
+.page-heading h1 span { font-family: var(--vb-font-display); font-style: italic; font-weight: 400; letter-spacing: -.035em; }
+.card-description, .send-card > p { font-size: 12px; line-height: 1.7; }
+.section-heading h2, .send-heading h2 { font-size: 16px; }
+.section-kicker { font-size: 9px; }
+.field-title, .language-grid label { font-size: 11px; }
+.select-field select, .recipient-field { font-size: 13px; }
+.consent-line, .send-check { font-size: 11px; line-height: 1.65; }
+.button-primary, .button-outline, .button { font-size: 12px; }
+.status-button { font-size: 11px; }
+.app-sidebar { height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
+.app-nav button { min-height: 44px; font-size: 13px; }
+.sidebar-section-label, .recent-title { font-size: 10px; }
+.recent-items > button { min-height: 48px; }
+.work-card { border-radius: 18px; }
+.quick-card { border-radius: 18px; }
+.top-bar { min-height: 68px; }
+.mobile-overlay { cursor: pointer; }
+
+@media (min-width: 1200px) {
+  .workflow-grid { grid-template-columns: minmax(0, 1.6fr) minmax(320px, .82fr); gap: 24px; }
+  .workflow-right { position: sticky; top: 92px; }
+  .content-wrap { padding-top: clamp(34px, 3.2vw, 54px); }
+}
+@media (max-width: 1100px) and (min-width: 801px) {
+  .app-sidebar { width: 218px; }
+  .app-main { margin-left: 218px; width: calc(100% - 218px); }
+  .top-bar { padding-inline: 22px; }
+  .content-wrap { padding: 30px 22px; }
+  .workflow-grid { grid-template-columns: minmax(0, 1fr); }
+  .workflow-right { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .workflow-right .quick-card { min-height: 100%; }
+  .page-heading h1, .secondary-heading h1 { font-size: clamp(38px, 5vw, 52px); }
+}
+@media (max-width: 800px) {
+  .app-sidebar {
+    visibility: hidden;
+    width: min(320px, calc(100vw - 44px));
+    height: 100dvh;
+    padding-top: max(18px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    transition: transform .28s cubic-bezier(.2,.75,.25,1), visibility .28s;
+  }
+  .app-sidebar.open { visibility: visible; }
+  .app-main { margin-left: 0; width: 100%; padding-bottom: calc(94px + env(safe-area-inset-bottom)); }
+  .top-bar { min-height: 64px; padding-inline: max(14px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-right)); }
+  .menu-mobile { width: 44px; height: 44px; border-radius: 13px; }
+  .mobile-overlay { animation: vb-overlay-in .2s ease both; }
+  .content-wrap { padding: 25px clamp(15px, 3.5vw, 26px) 28px; }
+  .workflow-grid { grid-template-columns: minmax(0, 1fr); }
+  .workflow-right { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .work-card { padding: clamp(18px, 3vw, 24px); }
+  .mobile-bottom-nav { min-height: 68px; padding-bottom: max(7px, env(safe-area-inset-bottom)); }
+  .mobile-bottom-nav button { min-height: 54px; font-size: 11px; }
+  .toast { bottom: calc(96px + env(safe-area-inset-bottom)); }
+}
+@keyframes vb-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 600px) {
+  .top-bar { gap: 8px; }
+  .top-left, .top-actions { min-width: 0; gap: 6px; }
+  .top-path { max-width: 38vw; font-size: 10px; }
+  .top-actions { margin-left: auto; }
+  .status-button { min-height: 42px; padding: 8px 10px; }
+  .top-signin { min-height: 44px; padding-inline: 11px; }
+  .content-wrap { padding: 22px 14px 26px; }
+  .page-heading { align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+  .page-heading h1, .secondary-heading h1 { font-size: clamp(34px, 9vw, 43px); line-height: 1.04; }
+  .page-heading p, .secondary-heading p { font-size: 13px; }
+  .hero-feature-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .hero-feature-row span { min-height: 36px; font-size: 10px; line-height: 1.35; }
+  .hero-feature-row span:last-child { grid-column: 1 / -1; }
+  .workflow-right, .settings-grid { grid-template-columns: minmax(0, 1fr); }
+  .language-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .language-direction { height: 22px; transform: rotate(90deg); justify-self: center; }
+  .select-field, .recipient-field { min-height: 48px; }
+  .select-field select, .recipient-field, .input-with-icon input, .auth-form input, .auth-form select, textarea { font-size: 16px; }
+  .consent-line input, .send-check input { width: 19px; height: 19px; }
+  .button, .button-primary, .button-outline, .upload-action { min-height: 46px; }
+  .translate-footer { align-items: stretch; }
+  .translate-footer .button-primary { width: 100%; }
+  .result-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .result-actions > * { min-width: 0; padding-inline: 8px; }
+  .history-toolbar { align-items: stretch; flex-direction: column; }
+  .history-toolbar > div { min-width: 0; width: 100%; }
+  .search-field, .search-field input { min-width: 0; width: 100%; }
+  .history-row { gap: 9px; }
+  .secondary-page { padding-inline: 14px; }
+  .settings-card { padding: 19px; }
+  .legal-links { gap: 13px; padding: 16px 14px 22px; font-size: 10px; }
+  dialog.modal { width: min(calc(100vw - 24px), 520px); padding: 21px; }
+}
+@media (max-width: 380px) {
+  .top-path { display: none; }
+  .top-left { flex: 0 0 auto; }
+  .top-actions { margin-left: auto; }
+  .status-button { padding-inline: 9px; }
+  .page-heading h1, .secondary-heading h1 { font-size: 33px; }
+  .hero-feature-row { grid-template-columns: minmax(0, 1fr); }
+  .hero-feature-row span:last-child { grid-column: auto; }
+  .result-actions { grid-template-columns: minmax(0, 1fr); }
+  .mobile-bottom-nav { left: 8px; right: 8px; }
+  .work-card { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobile-overlay { animation: none; }
+  .app-sidebar { transition: none; }
+}
