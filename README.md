@@ -41,14 +41,14 @@ The primary voice engine now uses asynchronous ElevenLabs Dubbing v2 rather than
 6. Retrieve the source and translated segment transcripts when available.
 7. Preview the translated audio before choosing a delivery channel.
 
-Configure `ELEVENLABS_API_KEY` and ensure FFmpeg is installed (the API Dockerfile installs it). Dubbing v2 is designed to preserve speaker identity, emotional tone and timing, but results still require listening tests. See [the voice engine guide](docs/architecture/voice-engine.md).
+Configure `ELEVENLABS_API_KEY` and ensure FFmpeg is installed (the API Dockerfile installs it). Dubbing v2 is designed to preserve speaker identity, emotional tone and timing, but results still require listening tests. See [the voice engine guide](docs/architecture/voice-engine.md) and [the durable jobs/auth architecture](docs/architecture/durable-jobs-and-auth.md).
 
 ## WhatsApp-first delivery
 
 Both WhatsApp paths are now represented in the implementation:
 
 - **Personal WhatsApp:** the translated preview can be downloaded to the Android cache and shared through the native system sharesheet. The user selects WhatsApp, chooses the chat, and confirms sending. VoiceBridge shares mono OGG/Opus audio, but the personal-account share interface does not guarantee WhatsApp's native microphone-recorded voice-note bubble.
-- **WhatsApp Business:** `apps/api/src/messaging/whatsapp-business.ts` contains a server-side Cloud API adapter that uploads OGG/Opus audio and sends it with `audio.voice: true` so WhatsApp can render it as a native voice message from the registered Business number. It is intentionally not exposed through an HTTP send route until VoiceBridge has authenticated users, business-account authorization, persistent send jobs, and webhook delivery tracking.
+- **WhatsApp Business:** `apps/api/src/messaging/whatsapp-business.ts` contains a server-side Cloud API adapter that uploads OGG/Opus audio and sends it with `audio.voice: true` so WhatsApp can render it as a native voice message from the registered Business number. It remains separate from personal WhatsApp. A public send route still requires business-sender authorization, persisted send jobs, and webhook delivery tracking.
 
 See [the WhatsApp integration architecture](docs/architecture/whatsapp-integration.md) for provider setup and production acceptance tests. Personal sharing requires the Expo FileSystem and Sharing modules. Business sending requires an eligible Meta Business Platform account, server-side credentials, an authorized recipient, and audio-worker conversion to OGG/Opus.
 
