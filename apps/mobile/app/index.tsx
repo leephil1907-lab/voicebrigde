@@ -29,6 +29,9 @@ export default function HomeScreen() {
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [sourceTranscript, setSourceTranscript] = useState("");
+  const [translatedTranscript, setTranslatedTranscript] = useState("");
+  const [detectedSourceLanguage, setDetectedSourceLanguage] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [translationStatus, setTranslationStatus] = useState("");
   const player = useAudioPlayer(null);
@@ -40,7 +43,7 @@ export default function HomeScreen() {
     if (!recordingUri) return;
     if (!API_URL) return Alert.alert("API address required", "Set EXPO_PUBLIC_API_URL in apps/mobile/.env to your deployed API URL or your computer’s LAN IP.");
     setBusy(true);
-    setPreviewUrl(null); setTranslationStatus("Uploading your recording…");
+    setPreviewUrl(null); setSourceTranscript(""); setTranslatedTranscript(""); setDetectedSourceLanguage(null); setTranslationStatus("Uploading your recording…");
     try {
       const form = new FormData();
       form.append("sourceLanguage", "auto");
@@ -64,6 +67,9 @@ export default function HomeScreen() {
       if (job.status !== "completed" || !job.audioUrl) throw new Error("This translation is taking longer than expected. Please try again.");
       const url = API_URL + job.audioUrl;
       setPreviewUrl(url);
+      setSourceTranscript(job.sourceTranscript || "Transcript unavailable for this recording.");
+      setTranslatedTranscript(job.translatedTranscript || "Translated transcript unavailable; listen to the audio preview.");
+      setDetectedSourceLanguage(job.sourceLanguage || null);
       setTranslationStatus("Translation ready");
       await player.replace({ uri: url });
       Alert.alert("Translation ready", "Your translated audio is ready. Preview it before sharing.");
@@ -176,8 +182,10 @@ export default function HomeScreen() {
             <Text style={styles.translateButtonText}>{busy ? "Processing your voice…" : "✦  Translate voice · Preserve expression"}</Text>
           </Pressable>
           {previewUrl ? <View style={styles.resultCard}>
-            <Text style={styles.sectionLabel}>TRANSLATED VOICE MESSAGE · {selectedLanguage.label.toUpperCase()}</Text>
-            <Text style={styles.resultText}>Your translated audio is ready. Listen before sharing it with your recipient.</Text>
+            <Text style={styles.sectionLabel}>SOURCE · {detectedSourceLanguage ? detectedSourceLanguage.toUpperCase() : "AUTO-DETECTED"}</Text>
+            <Text style={styles.resultText}>{sourceTranscript}</Text>
+            <Text style={styles.sectionLabel}>TRANSLATION · {selectedLanguage.label.toUpperCase()}</Text>
+            <Text style={styles.resultText}>{translatedTranscript}</Text>
             <Pressable onPress={() => { if (previewUrl) { player.replace({ uri: previewUrl }); player.play(); } }} disabled={!previewUrl} style={styles.previewButton}>
               <Text style={styles.previewButtonText}>▶  Play translated voice preview</Text>
             </Pressable>
