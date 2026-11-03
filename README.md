@@ -79,15 +79,13 @@ For Render Free, the API and durable worker run as two child processes inside on
 - Speech, translation and voice generation: provider adapters; credentials remain server-side
 - Deployment: Render Free single web service (API + worker in one container); separate always-on worker can be added later on a paid plan
 
-## Render Free deployment
+## Render deployment
 
-The repository includes a Render Blueprint in `render.yaml`. Create a Blueprint from this repository and select the free web-service plan. The one service hosts the API, web studio and durable worker together; no paid background-worker service is provisioned. Add `SUPABASE_SECRET_KEY` and `ELEVENLABS_API_KEY` as secret environment variables in Render. The Supabase URL, publishable key and private bucket name are prefilled in the Blueprint.
+The repository Blueprint declares one Render Pro Docker web service hosting the API, web studio and durable dubbing worker together. Create a new Blueprint deployment from `main`, provide `SUPABASE_SECRET_KEY` and `ELEVENLABS_API_KEY`, and verify the generated service URL and health endpoint. The Supabase URL, publishable key and private bucket name are prefilled in the Blueprint. See [Render deployment instructions](docs/RENDER_FREE_DEPLOYMENT.md).
 
-Render Free services can spin down after inactivity. While the service is asleep, the worker is not processing jobs; queued jobs remain in Supabase and resume when the service starts again. This is suitable for a no-cost initial deployment, not continuous or time-sensitive processing. See [Render Free deployment notes](docs/RENDER_FREE_DEPLOYMENT.md).
+## Deployment status
 
-## Production status
-
-The live Render deployment is connected to the VoiceBridge Supabase project. The web studio, API, private storage, durable queue and co-hosted worker are deployed. GitHub Actions verifies API/web tests, browser end-to-end tests, TypeScript checks, and the Docker build. Live authentication and a real ElevenLabs dubbing job still require an owner-controlled test account and provider credits. WhatsApp Business and Telegram are implemented as official server-side adapters but remain disabled until their credentials and approved sender user IDs are added in Render. See [the production setup guide](docs/CONNECT_SOCIAL_PLATFORMS.md), [Privacy Policy](/privacy.html), and [Terms of Service](/terms.html).
+The repository includes a Render Blueprint and Docker deployment configuration, but a new Render service must be created and verified before VoiceBridge can be considered live. Deployment success, Supabase connectivity, account authentication and a real ElevenLabs translation are separate checks. WhatsApp Business and Telegram remain disabled until their official provider credentials and approved sender user IDs are configured. Follow [the Render deployment guide](docs/RENDER_FREE_DEPLOYMENT.md) and then [the social platform setup guide](docs/CONNECT_SOCIAL_PLATFORMS.md).
 
 ## Local development
 
