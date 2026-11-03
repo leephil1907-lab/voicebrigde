@@ -14,6 +14,14 @@ const languages = [
   { code: "de", label: "German", native: "Deutsch" },
   { code: "it", label: "Italian", native: "Italiano" },
   { code: "ar", label: "Arabic", native: "العربية" },
+  { code: "ha", label: "Hausa", native: "Hausa" },
+  { code: "yo", label: "Yoruba", native: "Yorùbá" },
+  { code: "sw", label: "Swahili", native: "Kiswahili" },
+  { code: "hi", label: "Hindi", native: "हिन्दी" },
+  { code: "nl", label: "Dutch", native: "Nederlands" },
+  { code: "ru", label: "Russian", native: "Русский" },
+  { code: "tr", label: "Turkish", native: "Türkçe" },
+  { code: "ur", label: "Urdu", native: "اردو" },
 ];
 
 export default function HomeScreen() {
@@ -56,8 +64,8 @@ export default function HomeScreen() {
       }
       if (job.status !== "completed" || !job.audioUrl) throw new Error("This translation is taking longer than expected. Please try again.");
       const url = API_URL + job.audioUrl;
-      setTranscript("Original speech detected automatically.");
-      setTranslatedText("Translated into " + selectedLanguage.label + ". Listen to the audio before sharing.");
+      setTranscript("Source language is detected automatically from your recording.");
+      setTranslatedText("Voice translated into " + selectedLanguage.label + ". Preview the recording before sharing.");
       setPreviewUrl(url);
       setTranslationStatus("Translation ready");
       await player.replace({ uri: url });
@@ -170,9 +178,9 @@ export default function HomeScreen() {
             <Text style={styles.translateButtonText}>{busy ? "Processing your voice…" : "✦  Translate voice · Preserve expression"}</Text>
           </Pressable>
           {(transcript || translatedText) ? <View style={styles.resultCard}>
-            <Text style={styles.sectionLabel}>WHAT YOU SAID · ENGLISH</Text>
+            <Text style={styles.sectionLabel}>SOURCE AUDIO</Text>
             <Text style={styles.resultText}>{transcript}</Text>
-            <Text style={styles.sectionLabel}>TRANSLATION · {selectedLanguage.label.toUpperCase()}</Text>
+            <Text style={styles.sectionLabel}>TARGET AUDIO · {selectedLanguage.label.toUpperCase()}</Text>
             <Text style={styles.resultText}>{translatedText}</Text>
             <Pressable onPress={() => { if (previewUrl) { player.replace({ uri: previewUrl }); player.play(); } }} disabled={!previewUrl} style={styles.previewButton}>
               <Text style={styles.previewButtonText}>▶  Play cloned-voice preview</Text>
