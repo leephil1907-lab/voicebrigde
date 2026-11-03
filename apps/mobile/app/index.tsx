@@ -194,9 +194,9 @@ export default function HomeScreen() {
               <Text style={styles.previewButtonText}>▶  Play translated voice preview</Text>
             </Pressable>
             <Pressable onPress={shareToWhatsApp} disabled={!previewUrl || sharing} style={[styles.shareButton, (!previewUrl || sharing) && styles.translateDisabled]}>
-              <Text style={styles.shareButtonText}>{sharing ? "Preparing audio…" : "Share via personal WhatsApp"}</Text>
+              <Text style={styles.shareButtonText}>{sharing ? "Preparing audio…" : "Share audio · choose WhatsApp"}</Text>
             </Pressable>
-            <Text style={styles.shareHint}>This shares from your personal WhatsApp account. WhatsApp may show it as an audio attachment; the public personal-account share interface cannot guarantee a native voice-note bubble.</Text>
+            <Text style={styles.shareHint}>Android will open the system share sheet. Choose WhatsApp, select the chat and confirm. It sends from your personal WhatsApp account, but WhatsApp may display it as an audio attachment rather than a native voice-note bubble.</Text>
           </View> : null}
           <Text style={styles.disclaimer}>{translationStatus || "Dubbing v2 automatically matches the speaker from each recording. Preview links expire after 30 minutes in this build."}</Text>
         </View>
