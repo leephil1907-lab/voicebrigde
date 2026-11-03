@@ -17,10 +17,10 @@ Confirm the `public` schema is exposed to the Supabase Data API. The migration g
 
 ## 2. Configure the API and worker
 
-Copy the root environment template:
+Copy the root environment template into the API workspace so both the API and worker load it when started from `apps/api`:
 
 ```bash
-cp .env.example .env
+cp ../../.env.example .env
 ```
 
 Set:
