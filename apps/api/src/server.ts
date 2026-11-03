@@ -248,7 +248,7 @@ app.post("/v1/voice/deliver", { preHandler: authenticate, config: { rateLimit: {
   if (!parsed.success) return reply.code(400).send({ message: "Confirm the preview and recipient permission, then enter a valid recipient." });
   const { jobId, idempotencyKey, channel } = parsed.data;
   let recipient: string;
-  try { recipient = channel === "whatsapp_business" ? normalizePhone(parsed.data.recipient) : parsed.data.recipient.trim(); if (channel === "telegram" && !/^-?\\d+$/.test(recipient)) throw new Error("Enter the Telegram chat ID of someone who has started your bot."); }
+  try { recipient = channel === "whatsapp_business" ? normalizePhone(parsed.data.recipient) : parsed.data.recipient.trim(); if (channel === "telegram" && !/^-?\d+$/.test(recipient)) throw new Error("Enter the Telegram chat ID of someone who has started your bot."); }
   catch (error) { return reply.code(400).send({ message: (error as Error).message }); }
   if (channel === "whatsapp_business" && !(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_GRAPH_API_VERSION)) return reply.code(503).send({ message: "WhatsApp Business Cloud API is not configured." });
   if (channel === "telegram" && !process.env.TELEGRAM_BOT_TOKEN) return reply.code(503).send({ message: "Telegram bot is not configured." });
