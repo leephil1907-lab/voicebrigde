@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { File, Paths } from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, useAudioRecorderState, useAudioPlayer } from "expo-audio";
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || "http://127.0.0.1:8080").replace(/\/$/, "");
@@ -23,6 +25,7 @@ export default function HomeScreen() {
   const [transcript, setTranscript] = useState("");
   const [translatedText, setTranslatedText] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
   const player = useAudioPlayer(null);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
@@ -71,6 +74,24 @@ export default function HomeScreen() {
     } catch (error) {
       Alert.alert("Translation error", error instanceof Error ? error.message : "Check your API connection and provider keys.");
     } finally { setBusy(false); }
+  }
+
+  async function shareToWhatsApp() {
+    if (!previewUrl) return Alert.alert("Translation required", "Generate and preview a translated voice message first.");
+    setSharing(true);
+    try {
+      if (!(await Sharing.isAvailableAsync())) throw new Error("The Android share sheet is not available on this device.");
+      const source = new File(Paths.cache, `voicebridge-${Date.now()}.mp3`);
+      const localAudio = await File.downloadFileAsync(previewUrl, source);
+      await Sharing.shareAsync(localAudio.uri, {
+        dialogTitle: "Send translated voice message",
+        mimeType: "audio/mpeg",
+      });
+    } catch (error) {
+      Alert.alert("WhatsApp sharing", error instanceof Error ? error.message : "Could not prepare the translated audio for sharing.");
+    } finally {
+      setSharing(false);
+    }
   }
 
   async function toggleRecording() {
@@ -177,10 +198,10 @@ export default function HomeScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Messaging channels</Text>
-          <Text style={styles.sectionMeta}>CONNECT IN PHASE 2</Text>
+          <Text style={styles.sectionMeta}>WHATSAPP PRIORITY</Text>
         </View>
         <View style={styles.channels}>
-          <View style={styles.channelCard}><Text style={styles.channelIcon}>◉</Text><Text style={styles.channelName}>WhatsApp</Text><Text style={styles.channelState}>Not connected</Text></View>
+          <View style={styles.channelCard}><Text style={styles.channelIcon}>◉</Text><Text style={styles.channelName}>WhatsApp Personal</Text><Text style={styles.channelState}>Android share hand-off</Text></View><View style={styles.channelCard}><Text style={styles.channelIcon}>◉</Text><Text style={styles.channelName}>WhatsApp Business</Text><Text style={styles.channelState}>Cloud API · setup required</Text></View>
           <View style={styles.channelCard}><Text style={[styles.channelIcon, { color: "#55B9F3" }]}>➤</Text><Text style={styles.channelName}>Telegram</Text><Text style={styles.channelState}>Not connected</Text></View>
           <View style={styles.channelCard}><Text style={[styles.channelIcon, { color: "#D7E6D9" }]}>＋</Text><Text style={styles.channelName}>More apps</Text><Text style={styles.channelState}>Coming later</Text></View>
         </View>
@@ -246,7 +267,7 @@ const styles = StyleSheet.create({
   resultCard: { marginTop: 15, padding: 14, borderRadius: 14, backgroundColor: "#111813", borderWidth: 1, borderColor: "#344036" },
   resultText: { color: "#E4EADF", fontSize: 12, lineHeight: 19, marginTop: 5, marginBottom: 12 },
   previewButton: { backgroundColor: "#D6F269", borderRadius: 11, padding: 13, alignItems: "center" },
-  previewButtonText: { color: "#172014", fontSize: 11, fontWeight: "900" },
+  previewButtonText: { color: "#172014", fontSize: 11, fontWeight: "900" },\n  shareButton: { backgroundColor: "#26382A", borderWidth: 1, borderColor: "#627B43", borderRadius: 11, padding: 13, alignItems: "center", marginTop: 9 },\n  shareButtonText: { color: "#D6F269", fontSize: 10, fontWeight: "900", textAlign: "center" },\n  shareHint: { color: "#849181", fontSize: 9, lineHeight: 14, marginTop: 8 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 29, marginBottom: 12 },
   sectionTitle: { color: "#F1F4ED", fontSize: 15, fontWeight: "800" },
   sectionMeta: { color: "#84917F", fontSize: 8, letterSpacing: 1, fontWeight: "700" },
