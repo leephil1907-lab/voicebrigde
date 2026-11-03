@@ -438,3 +438,56 @@ dialog.modal { overscroll-behavior: contain; max-height: min(90dvh, 820px); }
   .history-row:hover { transform: none; }
   .content-wrap, .secondary-page, .history-page { will-change: auto; }
 }
+
+
+/* VoiceBridge responsive hero + motion polish. */
+.page-heading { position: relative; gap: clamp(18px,2.6vw,38px); }
+.page-heading-copy { flex: 1 1 auto; min-width: 0; }
+.hero-visual {
+  flex: 0 0 clamp(190px,22vw,280px);
+  width: clamp(190px,22vw,280px);
+  margin: -12px 0 -18px auto;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.sound-globe { width: 100%; max-width: 280px; opacity: .96; filter: drop-shadow(0 14px 22px rgba(36,76,49,.08)); }
+.sound-globe svg { width: 100%; height: auto; overflow: visible; animation: vb-globe-float 6s ease-in-out infinite; }
+.sound-globe-orbit { transform-box: fill-box; transform-origin: center; animation: vb-orbit 28s linear infinite; }
+.sound-globe-core { filter: drop-shadow(0 8px 12px rgba(25,59,50,.18)); }
+.hero-feature-row span { transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease; }
+.hero-feature-row span:hover { transform: translateY(-2px); border-color: #cfe1ce; box-shadow: 0 8px 20px rgba(25,60,40,.07); }
+.recorder-area.recording .recorder-wave { opacity: .95; animation: vb-wave-pulse 1.25s ease-in-out infinite alternate; }
+.recorder-area.recording .recorder-wave .waveform { filter: drop-shadow(0 0 5px rgba(105,157,111,.24)); }
+.status-dot.ready { box-shadow: 0 0 0 4px rgba(100,174,117,.12); }
+.status-button { transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.status-button:hover { border-color: #c9ddcc; box-shadow: 0 5px 14px rgba(28,71,48,.06); }
+.work-card:focus-within { border-color: #c8dec9; box-shadow: 0 14px 38px rgba(25,60,40,.07); }
+@keyframes vb-globe-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes vb-orbit { to { transform: rotate(360deg); } }
+@keyframes vb-wave-pulse { from { opacity: .52; transform: translateY(2px) scaleY(.88); } to { opacity: 1; transform: translateY(-2px) scaleY(1.06); } }
+@media (max-width: 1100px) {
+  .hero-visual { display: none; }
+}
+@media (max-width: 800px) {
+  .page-heading { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: start; }
+  .page-heading-copy { grid-column: 1 / -1; }
+  .new-note { grid-column: 1 / -1; justify-self: start; }
+  .hero-feature-row { width: 100%; }
+}
+@media (max-width: 600px) {
+  .page-heading { gap: 12px; }
+  .page-heading h1 { max-width: 15ch; }
+  .new-note { min-height: 44px; }
+  .card-description { line-height: 1.55; }
+  .player-main { gap: 8px; }
+  .player-time { font-size: 9px; }
+  .result-info { gap: 10px; }
+  .account-id-row { flex-wrap: wrap; }
+  .account-id-row code { max-width: 100%; overflow-wrap: anywhere; }
+  .legal-links { padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sound-globe svg, .sound-globe-orbit, .recorder-area.recording .recorder-wave { animation: none !important; }
+  .hero-feature-row span, .status-button { transition: none !important; }
+}
