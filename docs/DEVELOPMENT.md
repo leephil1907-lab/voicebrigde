@@ -71,9 +71,9 @@ Use the deployed HTTPS API URL or your development computer's LAN IP. Do not use
 
 The app provides email/password sign-up and sign-in. If Supabase email confirmation is enabled, confirm the new account from the email before signing in.
 
-## 4. Deploy on Render Free
+## 4. Deploy on Render
 
-Use the repository Blueprint at `render.yaml` to create one free Docker web service. The Docker image builds the API and web studio, installs FFmpeg, and starts the API plus the durable worker in the same container.
+Use the repository Blueprint at `render.yaml` to create one Pro Docker web service. The Docker image builds the API and web studio, installs FFmpeg, and starts the API plus the durable worker in the same container.
 
 Required secret environment variables:
 
@@ -82,7 +82,7 @@ Required secret environment variables:
 
 The Blueprint pre-fills the Supabase project URL, publishable key, private bucket, FFmpeg path and audio limits. The Render service automatically receives `PORT`; the API listens on it.
 
-The free instance can spin down after inactivity. The worker pauses while the instance is asleep; jobs remain queued in Supabase and resume after the next service start. This is a cost-free starter arrangement, not an always-on processing guarantee. See [Render Free deployment notes](./RENDER_FREE_DEPLOYMENT.md).
+The Pro instance remains available for continuous worker processing. If you deliberately choose a Free instance instead, it can spin down after inactivity and pause job processing; queued jobs remain in Supabase and resume after the next service start. See [Render deployment notes](./RENDER_FREE_DEPLOYMENT.md).
 
 ## API endpoints
 
@@ -126,7 +126,7 @@ GitHub Actions runs API and mobile TypeScript checks, API/web tests and builds, 
 
 ## Remaining owner-controlled production checks
 
-The live Render and Supabase services are deployed. Automated CI covers API/web tests, browser end-to-end tests, TypeScript checks and the Docker build. The remaining checks need the service owner's own accounts and provider credentials:
+Automated CI covers API/web tests, browser end-to-end tests, TypeScript checks and the Docker build. Create and verify a new Render service before treating the deployment as live. The remaining checks need the service owner's own accounts and provider credentials:
 
 - Configure Supabase Auth Site URL as `https://voicebridge-9unm.onrender.com` and add that URL to Redirect URLs. Enable Email sign-in and verify confirmation and reset email delivery. Use a suitable SMTP provider before inviting public users.
 - Create a test VoiceBridge account and verify signup, confirmation, sign-in, password reset, recovery and sign-out.
