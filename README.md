@@ -2,7 +2,7 @@
 
 **Your voice. Every language.**
 
-VoiceBridge AI is an Android-first multilingual voice messaging application. Users record a message in their own language, review a translation, generate speech using an authorized personal voice profile, and send it through supported messaging integrations.
+VoiceBridge AI is an Android-first multilingual voice messaging application. Users record a message in their own language, translate it while retaining the original speaker's vocal identity and delivery as closely as possible, preview it, and send it through supported messaging integrations.
 
 ## Product principles
 
@@ -43,24 +43,12 @@ The primary voice engine now uses asynchronous ElevenLabs Dubbing v2 rather than
 
 Configure `ELEVENLABS_API_KEY` and ensure FFmpeg is installed (the API Dockerfile installs it). Dubbing v2 supports 90+ languages and is designed to preserve speaker identity, emotional tone and timing, but results still require listening tests; cloning strength 8 favors resemblance and may affect naturalness across very different languages. See [the voice engine guide](docs/architecture/voice-engine.md). Jobs and preview buffers are currently held in process memory; a durable queue, object storage and authenticated accounts remain required before production.
 
-## Planned message pipeline
-
-1. Record audio on the Android device.
-2. Upload it using a short-lived signed upload URL.
-3. Transcribe the source audio.
-4. Translate the transcript into the recipient's selected language.
-5. Let the user review and edit the translation.
-6. Generate speech using a voice profile the user is authorized to use.
-7. Normalize the audio to a provider-compatible voice-message format.
-8. Preview the result and require explicit approval.
-9. Send through a platform adapter and track the provider's response.
-
 ## WhatsApp-first delivery
 
 Both WhatsApp paths are now represented in the implementation:
 
-- **Personal WhatsApp:** the translated preview can be downloaded to the Android cache and shared through the native system sharesheet. The user selects WhatsApp, chooses the chat, and confirms sending. This is a file hand-off and may appear as an audio attachment rather than a microphone-style voice-note bubble; verify on real devices.
-- **WhatsApp Business:** `apps/api/src/messaging/whatsapp-business.ts` contains a server-side Cloud API adapter that uploads OGG/Opus audio and sends it as a voice-marked audio message. It is intentionally not exposed through an HTTP send route until VoiceBridge has authenticated users, business-account authorization, persistent send jobs, and webhook delivery tracking.
+- **Personal WhatsApp:** the translated preview can be downloaded to the Android cache and shared through the native system sharesheet. The user selects WhatsApp, chooses the chat, and confirms sending. VoiceBridge shares mono OGG/Opus audio, but the personal-account share interface does not guarantee WhatsApp's native microphone-recorded voice-note bubble.
+- **WhatsApp Business:** `apps/api/src/messaging/whatsapp-business.ts` contains a server-side Cloud API adapter that uploads OGG/Opus audio and sends it with `audio.voice: true` so WhatsApp can render it as a native voice message from the registered Business number. It is intentionally not exposed through an HTTP send route until VoiceBridge has authenticated users, business-account authorization, persistent send jobs, and webhook delivery tracking.
 
 See [the WhatsApp integration architecture](docs/architecture/whatsapp-integration.md) for provider setup and production acceptance tests. Personal sharing requires the Expo FileSystem and Sharing modules. Business sending requires an eligible Meta Business Platform account, server-side credentials, an authorized recipient, and audio-worker conversion to OGG/Opus.
 
