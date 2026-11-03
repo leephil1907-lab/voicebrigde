@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Alert, AppState, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, useAudioRecorderState, useAudioPlayer } from "expo-audio";
+import { supabase } from "../src/lib/supabase";
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || "").replace(/\/$/, "");
 
@@ -25,6 +26,12 @@ const languages = [
 ];
 
 export default function HomeScreen() {
+  const [session, setSession] = useState<any>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [authBusy, setAuthBusy] = useState(false);
   const [languageIndex, setLanguageIndex] = useState(0);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -39,9 +46,54 @@ export default function HomeScreen() {
   const recorderState = useAudioRecorderState(recorder);
   const selectedLanguage = languages[languageIndex];
 
+  useEffect(() => {
+    if (!supabase) { setAuthReady(true); return; }
+    let mounted = true;
+    supabase.auth.getSession().then(({ data }) => { if (mounted) { setSession(data.session); setAuthReady(true); } });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
+    return () => { mounted = false; subscription.unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") supabase.auth.startAutoRefresh();
+      else supabase.auth.stopAutoRefresh();
+    });
+    return () => subscription.remove();
+  }, []);
+
+  async function submitAuth() {
+    if (!supabase) return Alert.alert("Authentication is not configured", "Set the Supabase URL and publishable key in the mobile environment.");
+    if (!email.trim() || password.length < 8) return Alert.alert("Check your details", "Enter a valid email and a password with at least 8 characters.");
+    setAuthBusy(true);
+    try {
+      if (authMode === "signup") {
+        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+        if (error) throw error;
+        if (!data.session) Alert.alert("Check your email", "Confirm your email address, then sign in to VoiceBridge.");
+        else setSession(data.session);
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) throw error;
+        setSession(data.session);
+      }
+    } catch (error) {
+      Alert.alert(authMode === "signup" ? "Sign-up failed" : "Sign-in failed", error instanceof Error ? error.message : "Please try again.");
+    } finally { setAuthBusy(false); }
+  }
+
+  async function signOut() {
+    if (!supabase) return;
+    const { error } = await supabase.auth.signOut();
+    if (error) Alert.alert("Sign-out failed", error.message);
+    else { setSession(null); setPreviewUrl(null); setRecordingUri(null); }
+  }
+
   async function translateRecording() {
     if (!recordingUri) return;
     if (!API_URL) return Alert.alert("API address required", "Set EXPO_PUBLIC_API_URL in apps/mobile/.env to your deployed API URL or your computer’s LAN IP.");
+    if (!supabase || !session) return Alert.alert("Sign in required", "Sign in before creating a translation.");
     setBusy(true);
     setPreviewUrl(null); setSourceTranscript(""); setTranslatedTranscript(""); setDetectedSourceLanguage(null); setTranslationStatus("Uploading your recording…");
     try {
@@ -49,14 +101,19 @@ export default function HomeScreen() {
       form.append("sourceLanguage", "auto");
       form.append("targetLanguage", selectedLanguage.code);
       form.append("file", { uri: recordingUri, name: "voice-message.m4a", type: "audio/m4a" } as any);
-      const response = await fetch(API_URL + "/v1/voice/translate", { method: "POST", body: form });
+      const { data: { session: activeSession } } = await supabase.auth.getSession();
+      if (!activeSession) throw new Error("Your session expired. Sign in again.");
+      const authHeaders = { Authorization: "Bearer " + activeSession.access_token };
+      const response = await fetch(API_URL + "/v1/voice/translate", { method: "POST", headers: authHeaders, body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || "Voice translation failed.");
       setTranslationStatus("Preparing the original speaker's translated voice…");
       let job = data;
       for (let attempt = 0; attempt < 360; attempt++) {
         await new Promise((resolve) => setTimeout(resolve, 3000));
-        const statusResponse = await fetch(API_URL + "/v1/voice/translations/" + data.id);
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (!currentSession) throw new Error("Your session expired. Sign in again.");
+        const statusResponse = await fetch(API_URL + "/v1/voice/translations/" + data.id, { headers: { Authorization: "Bearer " + currentSession.access_token } });
         const statusData = await statusResponse.json();
         if (!statusResponse.ok) throw new Error(statusData.message || "Could not check translation status.");
         job = statusData;
@@ -65,7 +122,7 @@ export default function HomeScreen() {
         setTranslationStatus(job.status === "preparing" ? "Detecting speech and preparing the source…" : "Translating while preserving the speaker's delivery…");
       }
       if (job.status !== "completed" || !job.audioUrl) throw new Error("This translation is taking longer than expected. Please try again.");
-      const url = API_URL + job.audioUrl;
+      const url = job.audioUrl.startsWith("http") ? job.audioUrl : API_URL + job.audioUrl;
       setPreviewUrl(url);
       setSourceTranscript(job.sourceTranscript || "Transcript unavailable for this recording.");
       setTranslatedTranscript(job.translatedTranscript || "Translated transcript unavailable; listen to the audio preview.");
@@ -125,6 +182,24 @@ export default function HomeScreen() {
     }
   }
 
+  if (!authReady) return <SafeAreaView style={styles.safe}><View style={styles.authPage}><Text style={styles.brand}>VOICEBRIDGE</Text><Text style={styles.authCopy}>Loading your secure session…</Text></View></SafeAreaView>;
+
+  if (!session) return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.authPage}>
+        <View style={styles.brandMark}><Text style={styles.brandMarkText}>V</Text></View>
+        <Text style={styles.brand}>VOICEBRIDGE</Text>
+        <Text style={styles.authTitle}>{authMode === "signin" ? "Welcome back." : "Create your account."}</Text>
+        <Text style={styles.authCopy}>Your translations and recordings are private to your account.</Text>
+        {!supabase ? <Text style={styles.authError}>Set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY to enable secure sign-in.</Text> : null}
+        <TextInput value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="Email address" placeholderTextColor="#778477" style={styles.authInput} />
+        <TextInput value={password} onChangeText={setPassword} secureTextEntry placeholder="Password (8+ characters)" placeholderTextColor="#778477" style={styles.authInput} />
+        <Pressable disabled={authBusy || !supabase} onPress={submitAuth} style={[styles.authButton, (authBusy || !supabase) && styles.translateDisabled]}><Text style={styles.authButtonText}>{authBusy ? "Please wait…" : authMode === "signin" ? "Sign in" : "Create account"}</Text></Pressable>
+        <Pressable onPress={() => setAuthMode(authMode === "signin" ? "signup" : "signin")}><Text style={styles.authSwitch}>{authMode === "signin" ? "New to VoiceBridge? Create an account" : "Already registered? Sign in"}</Text></Pressable>
+      </View>
+    </SafeAreaView>
+  );
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -134,7 +209,7 @@ export default function HomeScreen() {
             <Text style={styles.brand}>VOICEBRIDGE</Text>
             <Text style={styles.brandSub}>YOUR VOICE. EVERY LANGUAGE.</Text>
           </View>
-          <View style={styles.avatar}><Text style={styles.avatarText}>You</Text></View>
+          <Pressable onPress={signOut} style={styles.avatar}><Text style={styles.avatarText}>Sign out</Text></Pressable>
         </View>
 
         <View style={styles.hero}>
@@ -219,6 +294,14 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0D120F" },
+  authPage: { flex: 1, justifyContent: "center", padding: 28 },
+  authTitle: { color: "#F3F5EF", fontSize: 29, fontWeight: "800", marginTop: 38 },
+  authCopy: { color: "#9BA79A", fontSize: 13, lineHeight: 20, marginTop: 10, marginBottom: 22 },
+  authError: { color: "#F1C27B", fontSize: 11, lineHeight: 17, marginBottom: 12 },
+  authInput: { backgroundColor: "#171F19", color: "#F3F5EF", borderWidth: 1, borderColor: "#344036", borderRadius: 12, padding: 15, marginBottom: 11 },
+  authButton: { backgroundColor: "#D6F269", borderRadius: 12, padding: 16, alignItems: "center", marginTop: 7 },
+  authButtonText: { color: "#172014", fontWeight: "900", fontSize: 13 },
+  authSwitch: { color: "#D6F269", fontSize: 11, fontWeight: "700", textAlign: "center", marginTop: 20 },
   content: { padding: 22, paddingBottom: 42 },
   header: { flexDirection: "row", alignItems: "center", marginBottom: 38 },
   brandMark: { width: 42, height: 42, borderRadius: 13, backgroundColor: "#D6F269", alignItems: "center", justifyContent: "center" },
