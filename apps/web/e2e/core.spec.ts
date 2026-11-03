@@ -86,3 +86,30 @@ test('document head exposes consistent crawlable branding and social previews', 
   expect(documentHtml).toContain('<noscript>');
   expect(documentHtml).toContain('VoiceBridge AI');
 });
+
+
+test('mobile layout uses compact navigation and keeps content within the viewport', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  await setup(page);
+  await page.goto('/');
+  const nav = page.getByRole('navigation', { name: 'Mobile navigation' });
+  await expect(nav).toBeVisible();
+  const widths = await page.evaluate(() => ({ viewport: window.innerWidth, document: document.documentElement.scrollWidth }));
+  expect(widths.document).toBeLessThanOrEqual(widths.viewport);
+  await nav.getByRole('button', { name: 'Read note' }).click();
+  await expect(page.getByRole('heading', { name: 'Understand every message.' })).toBeVisible();
+  await nav.getByRole('button', { name: 'Connections' }).click();
+  await expect(page.getByRole('heading', { name: 'Connections', exact: true })).toBeVisible();
+  await context.close();
+});
+
+test('desktop keeps the full sidebar and hides the mobile tab bar', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await setup(page);
+  await page.goto('/');
+  await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toBeHidden();
+  const widths = await page.evaluate(() => ({ viewport: window.innerWidth, document: document.documentElement.scrollWidth }));
+  expect(widths.document).toBeLessThanOrEqual(widths.viewport);
+});
