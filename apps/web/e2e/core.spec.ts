@@ -61,3 +61,19 @@ test('invalid credentials surface an error and do not sign in', async ({page}) =
   const dialog=page.getByRole('dialog'); await dialog.getByLabel('Email address').fill(user.email); await dialog.getByLabel('Password',{exact:true}).fill('incorrect'); await dialog.getByRole('button',{name:'Sign in',exact:true}).click();
   await expect(dialog.getByRole('alert')).toContainText('Invalid login credentials'); await expect(dialog).toBeVisible();
 });
+
+test('document head exposes consistent crawlable branding and social previews', async ({ page }) => {
+  await page.goto('/');
+  await expect(page).toHaveTitle('VoiceBridge AI — Different language. Same you.');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://voicebridge-9unm.onrender.com/');
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', 'VoiceBridge AI — Different language. Same you.');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'https://voicebridge-9unm.onrender.com/og-image.png');
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
+  await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute('content', 'https://voicebridge-9unm.onrender.com/og-image.png');
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg');
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/apple-touch-icon.png');
+  const preview = await page.request.get('http://127.0.0.1:3000/og-image.png');
+  expect(preview.ok()).toBeTruthy();
+  expect(preview.headers()['content-type']).toContain('image/png');
+  expect(await page.locator('noscript').innerHTML()).toContain('VoiceBridge AI');
+});
