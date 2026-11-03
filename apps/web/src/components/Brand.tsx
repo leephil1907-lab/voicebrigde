@@ -6,6 +6,11 @@ export function Brand() {
   return <div className="brand"><BrandMark /><div><span className="brand-name">voicebridge<span className="brand-dot">.</span></span><span className="brand-caption">YOUR VOICE. EVERY LANGUAGE.</span></div></div>;
 }
 
+export function LanguageBadge({ code }: { code: string }) {
+  const normalized = code.trim().slice(0, 3).toUpperCase() || "N/A";
+  return <span className="language-code-badge" aria-label={`Language code ${normalized}`}>{normalized}</span>;
+}
+
 export function SpanishFlag() {
   return <svg className="spanish-flag" viewBox="0 0 30 22" aria-label="Spanish flag" role="img"><rect width="30" height="22" rx="4" fill="#e7ad39" /><path d="M0 5.5h30v11H0z" fill="#c64b45" /><path d="M8 8h4v5.5a2 2 0 0 1-4 0z" fill="#f4d58b" /><path d="M8 7h4M9 6v1M11 6v1" stroke="#f4d58b" strokeWidth="1.2" /></svg>;
 }
