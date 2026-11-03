@@ -133,6 +133,15 @@ app.get("/config", async (_request, reply) => {
 });
 app.get("/v1/languages", async () => ({ items: languages }));
 
+// Per-account delivery readiness. Never expose the approved sender list itself.
+app.get("/v1/voice/delivery-capabilities", { preHandler: authenticate }, async (request) => ({
+  authorizedSender: isAuthorizedSender(request.user!.id),
+  channels: {
+    whatsapp: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_GRAPH_API_VERSION),
+    telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN),
+  },
+}));
+
 const webDist = env.WEB_DIST_PATH || fileURLToPath(new URL("../../web/dist", import.meta.url));
 if (existsSync(resolve(webDist, "index.html"))) {
   // @fastify/static registers the index route (GET /) when index is configured.
