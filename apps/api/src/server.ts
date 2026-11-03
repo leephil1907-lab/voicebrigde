@@ -17,11 +17,6 @@ const envSchema = z.object({
   HOST: z.string().default("0.0.0.0"),
   CORS_ORIGIN: z.string().default("http://localhost:8081"),
   ELEVENLABS_API_KEY: z.string().optional(),
-  ELEVENLABS_MODEL_ID: z.string().default("eleven_multilingual_v2"),
-  ELEVENLABS_STABILITY: z.coerce.number().min(0).max(1).default(0.55),
-  ELEVENLABS_SIMILARITY_BOOST: z.coerce.number().min(0).max(1).default(0.9),
-  ELEVENLABS_STYLE: z.coerce.number().min(0).max(1).default(0),
-  ELEVENLABS_SPEAKER_BOOST: z.enum(["true", "false"]).default("true").transform((value) => value === "true"),
   MAX_AUDIO_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
   FFMPEG_PATH: z.string().default("ffmpeg"),
 });
