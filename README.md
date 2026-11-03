@@ -43,12 +43,16 @@ The primary voice engine now uses asynchronous ElevenLabs Dubbing v2 rather than
 
 Configure `ELEVENLABS_API_KEY` and ensure FFmpeg is installed (the root `Dockerfile` installs it). Dubbing v2 is designed to preserve speaker identity, emotional tone and timing, but results still require listening tests. See [the voice engine guide](docs/architecture/voice-engine.md) and [the durable jobs/auth architecture](docs/architecture/durable-jobs-and-auth.md).
 
+## Enabled languages
+
+VoiceBridge currently exposes a curated set of 18 Dubbing v2 target languages: English (`en`), Spanish (`es`), French (`fr`), Portuguese (`pt`), German (`de`), Italian (`it`), Arabic (`ar`), Chinese (`zh`), Japanese (`ja`), Korean (`ko`), Hausa (`ha`), Yoruba (`yo`), Swahili (`sw`), Hindi (`hi`), Dutch (`nl`), Russian (`ru`), Turkish (`tr`) and Urdu (`ur`). The API returns this allowlist through `/v1/languages` and rejects target codes outside it. ElevenLabs Dubbing v2 supports 90+ languages; this curated list is the subset currently enabled in the VoiceBridge interface. See [ElevenLabs supported Dubbing languages](https://elevenlabs.io/docs/overview/capabilities/dubbing).
+
 ## WhatsApp-first delivery
 
 Both WhatsApp paths are now represented in the implementation:
 
 - **Personal WhatsApp:** the translated preview can be downloaded to the Android cache and shared through the native system sharesheet. The user selects WhatsApp, chooses the chat, and confirms sending. VoiceBridge shares mono OGG/Opus audio, but the personal-account share interface does not guarantee WhatsApp's native microphone-recorded voice-note bubble.
-- **WhatsApp Business:** `apps/api/src/messaging/whatsapp-business.ts` contains a server-side Cloud API adapter that uploads OGG/Opus audio and sends it with `audio.voice: true` so WhatsApp can render it as a native voice message from the registered Business number. It remains separate from personal WhatsApp. A public send route still requires business-sender authorization, persisted send jobs, and webhook delivery tracking.
+- **WhatsApp Business:** `apps/api/src/messaging/whatsapp-business.ts` contains a server-side Cloud API adapter that uploads OGG/Opus audio and sends it with `audio.voice: true` so WhatsApp can render it as a native voice message from the registered Business number. The authenticated `POST /v1/voice/deliver` route is protected by the `VOICEBRIDGE_ALLOWED_USER_IDS` sender allowlist, requires preview and recipient-consent confirmations, and writes a `voicebridge_deliveries` record before sending. The send is currently synchronous; Meta webhook verification/status callbacks and an asynchronous delivery worker are still outstanding.
 
 See [the WhatsApp integration architecture](docs/architecture/whatsapp-integration.md) for provider setup and production acceptance tests. Personal sharing requires the Expo FileSystem and Sharing modules. Business sending requires an eligible Meta Business Platform account, server-side credentials, an authorized recipient, and audio-worker conversion to OGG/Opus.
 
