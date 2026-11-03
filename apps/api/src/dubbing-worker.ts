@@ -73,6 +73,7 @@ async function runJob(job: VoiceJob) {
   }, 30_000);
   heartbeat.unref?.();
 
+  let creationPending = false;
   try {
     let providerProjectId = job.provider_project_id;
     let providerLanguageId = job.provider_language_id;
@@ -87,9 +88,11 @@ async function runJob(job: VoiceJob) {
       form.append("reference", `VoiceBridge ${job.id}`);
       if (job.source_language) form.append("source_language", job.source_language);
       await updateJob(job.id, { stage: "creating_dubbing_project" });
+      creationPending = true;
       const project = await providerRequest<{ project_id: string }>("/v1/dubbing/project", { method: "POST", body: form });
       providerProjectId = project.project_id;
       await updateJob(job.id, { provider_project_id: providerProjectId, stage: "preparing_source" });
+      creationPending = false;
     }
 
     let projectStatus = "";
@@ -105,12 +108,14 @@ async function runJob(job: VoiceJob) {
 
     if (!providerLanguageId) {
       await updateJob(job.id, { stage: "creating_target_language" });
+      creationPending = true;
       const language = await providerRequest<{ language_id: string }>(
         `/v1/dubbing/project/${encodeURIComponent(providerProjectId)}/language`,
         { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target_language: job.target_language, voice_settings: { cloning_strength: 8 } }) },
       );
       providerLanguageId = language.language_id;
       await updateJob(job.id, { provider_language_id: providerLanguageId, stage: "translating_audio" });
+      creationPending = false;
     }
 
     let languageStatus = "queued";
@@ -163,8 +168,8 @@ async function runJob(job: VoiceJob) {
     });
     console.info("VoiceBridge job completed", job.id);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Dubbing worker failed.";
-    const retry = job.attempts < job.max_attempts;
+    const message = creationPending ? "The provider could not confirm project or language creation. Check your ElevenLabs dashboard for charges before submitting again." : error instanceof Error ? error.message : "Dubbing worker failed.";
+    const retry = !creationPending && job.attempts < job.max_attempts;
     const delaySeconds = Math.min(300, 15 * (2 ** Math.max(0, job.attempts - 1)));
     await updateJob(job.id, {
       status: retry ? "queued" : "failed",

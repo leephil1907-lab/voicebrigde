@@ -4,7 +4,15 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import multipart, { type MultipartFile } from "@fastify/multipart";
+import staticFiles from "@fastify/static";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { z } from "zod";
+import { understandAudio } from "./understand.js";
+import { normalizePhone, isAuthorizedSender, canonicalAudioMime, probeAudioDuration } from "./audio.js";
+import { sendWhatsAppBusinessVoiceMessage } from "./messaging/whatsapp-business.js";
+import { sendTelegramVoice } from "./messaging/telegram.js";
 import { randomUUID } from "node:crypto";
 import { supabaseAdmin, supabasePublic, audioBucket, type AuthenticatedUser } from "./supabase.js";
 
@@ -20,6 +28,8 @@ const env = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   ELEVENLABS_API_KEY: z.string().optional(),
   MAX_AUDIO_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
+  MAX_AUDIO_SECONDS: z.coerce.number().int().positive().max(3600).default(120),
+  WEB_DIST_PATH: z.string().optional(),
 }).parse(process.env);
 if (!supabasePublic) throw new Error("Set SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY for API token verification.");
 
@@ -31,7 +41,26 @@ const app = Fastify({
   trustProxy: true,
 });
 app.decorateRequest("user", null);
-await app.register(helmet);
+const supabaseOrigin = new URL(env.SUPABASE_URL).origin;
+const supabaseRealtime = supabaseOrigin.replace(/^http/, "ws");
+await app.register(helmet, {
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      fontSrc: ["'self'", "data:"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      mediaSrc: ["'self'", "blob:", supabaseOrigin],
+      connectSrc: ["'self'", supabaseOrigin, supabaseRealtime],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      frameAncestors: ["'self'"],
+      upgradeInsecureRequests: env.NODE_ENV === "production" ? [] : null,
+    },
+  },
+});
 await app.register(cors, { origin: env.CORS_ORIGIN.split(",").map((v) => v.trim()), credentials: true });
 await app.register(rateLimit, { max: 30, timeWindow: "1 minute" });
 await app.register(multipart, { limits: { fileSize: env.MAX_AUDIO_BYTES, files: 1, fields: 8 } });
@@ -90,7 +119,26 @@ app.get("/health", async (_request, reply) => {
     timestamp: new Date().toISOString(),
   };
 });
+// Public browser configuration. Never return the ElevenLabs key or Supabase secret.
+app.get("/config", async (_request, reply) => {
+  reply.header("Cache-Control", "no-store");
+  return {
+    supabaseUrl: env.SUPABASE_URL,
+    supabasePublishableKey: env.SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_ANON_KEY,
+    maxAudioBytes: env.MAX_AUDIO_BYTES,
+    maxAudioSeconds: env.MAX_AUDIO_SECONDS,
+    targetLanguages: languages.map((language) => language.code),
+    channels: { whatsapp: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_GRAPH_API_VERSION), telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN) },
+  };
+});
 app.get("/v1/languages", async () => ({ items: languages }));
+
+const webDist = env.WEB_DIST_PATH || fileURLToPath(new URL("../../web/dist", import.meta.url));
+if (existsSync(resolve(webDist, "index.html"))) {
+  await app.register(staticFiles, { root: resolve(webDist), wildcard: false, index: ["index.html"] });
+  app.get("/", async (_request, reply) => reply.sendFile("index.html"));
+  app.log.info({ webDist }, "Serving VoiceBridge web studio");
+}
 
 app.post("/v1/voice/translate", {
   preHandler: authenticate,
@@ -100,17 +148,23 @@ app.post("/v1/voice/translate", {
   const user = request.user!;
   let sourceLanguage = "auto";
   let targetLanguage = "es";
+  let voiceConsent = false;
   let upload: { buffer: Buffer; filename: string; mimetype: string } | undefined;
   let inputPath: string | undefined;
   try {
     for await (const part of request.parts()) {
       if (part.type === "file") {
-        if (!part.mimetype.startsWith("audio/")) return reply.code(415).send({ error: "UNSUPPORTED_MEDIA_TYPE", message: "Upload a supported audio recording." });
+        if (!canonicalAudioMime(part.mimetype)) return reply.code(415).send({ error: "UNSUPPORTED_MEDIA_TYPE", message: "Upload a supported audio recording." });
         upload = await readUpload(part);
+        upload.mimetype = canonicalAudioMime(upload.mimetype)!;
       } else if (part.fieldname === "sourceLanguage") sourceLanguage = String(part.value);
       else if (part.fieldname === "targetLanguage") targetLanguage = String(part.value);
+      else if (part.fieldname === "voiceConsent") voiceConsent = part.value === "true";
     }
     if (!upload) return reply.code(400).send({ error: "AUDIO_REQUIRED", message: "Record or select an audio message first." });
+    if (!voiceConsent) return reply.code(400).send({ error: "VOICE_CONSENT_REQUIRED", message: "Confirm this is your voice or that you have the speaker's permission before translating." });
+    try { if (await probeAudioDuration(upload.buffer, upload.mimetype) > env.MAX_AUDIO_SECONDS + 0.5) return reply.code(400).send({ message: `Audio must be at most ${env.MAX_AUDIO_SECONDS} seconds.` }); }
+    catch { return reply.code(400).send({ message: "Could not inspect the audio. Check its format and ensure ffprobe is installed on the server." }); }
     if (!languages.some((x) => x.code === targetLanguage)) return reply.code(400).send({ error: "UNSUPPORTED_LANGUAGE", message: "Choose an enabled target language." });
     if (sourceLanguage !== "auto" && !languages.some((x) => x.code === sourceLanguage)) return reply.code(400).send({ error: "INVALID_SOURCE_LANGUAGE", message: "Choose a supported source language or auto-detection." });
 
@@ -127,6 +181,7 @@ app.post("/v1/voice/translate", {
       id, user_id: user.id, status: "queued", stage: "queued",
       source_language: sourceLanguage === "auto" ? null : sourceLanguage,
       target_language: targetLanguage, input_path: inputPath,
+      voice_consented_at: new Date().toISOString(),
     }).select("id,status,target_language,created_at").single();
     if (insertError) throw insertError;
     return reply.code(202).send({ id: job.id, status: job.status, targetLanguage: job.target_language, createdAt: job.created_at });
@@ -163,6 +218,56 @@ app.get("/v1/voice/translations", { preHandler: authenticate }, async (request, 
     .eq("user_id", request.user!.id).order("created_at", { ascending: false }).limit(50);
   if (error) return reply.code(500).send({ error: "JOB_HISTORY_FAILED", message: "Could not load translation history." });
   return { items: data || [] };
+});
+
+
+// Incoming audio is used only for transcription and text translation; no voice cloning.
+app.post("/v1/voice/understand", { preHandler: authenticate, config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } }, async (request, reply) => {
+  if (!env.ELEVENLABS_API_KEY) return reply.code(503).send({ message: "English reading requires the ElevenLabs service to be configured." });
+  try {
+    let upload: Awaited<ReturnType<typeof readUpload>> | undefined;
+    let consent = false;
+    for await (const part of request.parts()) {
+      if (part.type === "file") { if (!canonicalAudioMime(part.mimetype)) return reply.code(415).send({ message: "Choose a supported audio file." }); upload = await readUpload(part); upload.mimetype = canonicalAudioMime(upload.mimetype)!; }
+      else if (part.fieldname === "processingConsent") consent = part.value === "true";
+    }
+    if (!upload || !consent) return reply.code(400).send({ message: "Select an audio file and confirm you have permission to process it." });
+    try { if (await probeAudioDuration(upload.buffer, upload.mimetype) > env.MAX_AUDIO_SECONDS + 0.5) return reply.code(400).send({ message: `Audio must be at most ${env.MAX_AUDIO_SECONDS} seconds.` }); }
+    catch { return reply.code(400).send({ message: "Could not inspect the audio. Check its format and ensure ffprobe is installed on the server." }); }
+    const reading = await understandAudio({ audio: upload.buffer, mime: upload.mimetype, filename: upload.filename, apiKey: env.ELEVENLABS_API_KEY });
+    return reading;
+  } catch (error) { request.log.error({ error }, "Incoming audio reading failed"); return reply.code(502).send({ message: error instanceof Error ? error.message : "Could not read this voice note." }); }
+});
+
+// Server credentials are shared by this deployment, so sending is restricted to explicit owner IDs.
+app.post("/v1/voice/deliver", { preHandler: authenticate, config: { rateLimit: { max: 10, timeWindow: "15 minutes" } } }, async (request, reply) => {
+  if (!isAuthorizedSender(request.user!.id)) return reply.code(403).send({ message: "Native delivery is not enabled for this account. Ask the server owner to configure the approved sender list." });
+  const schema = z.object({ jobId: z.string().uuid(), idempotencyKey: z.string().uuid(), channel: z.enum(["whatsapp_business", "telegram"]), recipient: z.string().min(1).max(40), confirmed: z.literal(true), consent: z.literal(true) });
+  const parsed = schema.safeParse(request.body);
+  if (!parsed.success) return reply.code(400).send({ message: "Confirm the preview and recipient permission, then enter a valid recipient." });
+  const { jobId, idempotencyKey, channel } = parsed.data;
+  let recipient: string;
+  try { recipient = channel === "whatsapp_business" ? normalizePhone(parsed.data.recipient) : parsed.data.recipient.trim(); if (channel === "telegram" && !/^-?\d+$/.test(recipient)) throw new Error("Enter the Telegram chat ID of someone who has started your bot."); }
+  catch (error) { return reply.code(400).send({ message: (error as Error).message }); }
+  if (channel === "whatsapp_business" && !(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_GRAPH_API_VERSION)) return reply.code(503).send({ message: "WhatsApp Business Cloud API is not configured." });
+  if (channel === "telegram" && !process.env.TELEGRAM_BOT_TOKEN) return reply.code(503).send({ message: "Telegram bot is not configured." });
+  const { data: job } = await supabaseAdmin.from("voicebridge_jobs").select("id,status,output_path").eq("id", jobId).eq("user_id", request.user!.id).maybeSingle();
+  if (!job || job.status !== "completed" || !job.output_path) return reply.code(404).send({ message: "A completed voice note belonging to your account is required." });
+  const now = new Date().toISOString();
+  const { data: delivery, error: reservationError } = await supabaseAdmin.from("voicebridge_deliveries").insert({ user_id: request.user!.id, translation_job_id: jobId, channel, recipient, idempotency_key: idempotencyKey, status: "processing", recipient_consented_at: now, preview_confirmed_at: now, provider_attempted_at: now }).select("id").single();
+  if (reservationError || !delivery) return reply.code(409).send({ message: "This send request was already submitted or delivery storage is not ready. Check before sending again." });
+  try {
+    const { data: file, error } = await supabaseAdmin.storage.from(audioBucket).download(job.output_path);
+    if (error || !file) throw new Error("Could not retrieve the private translated audio.");
+    const audio = Buffer.from(await file.arrayBuffer());
+    const result = channel === "whatsapp_business" ? await sendWhatsAppBusinessVoiceMessage({ accessToken: process.env.WHATSAPP_ACCESS_TOKEN!, phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID!, graphApiVersion: process.env.WHATSAPP_GRAPH_API_VERSION!, recipient, audio, audioMimeType: "audio/ogg; codecs=opus" }) : await sendTelegramVoice({ chatId: recipient, audio });
+    await supabaseAdmin.from("voicebridge_deliveries").update({ status: "accepted", provider_message_id: result.messageId, updated_at: new Date().toISOString() }).eq("id", delivery.id);
+    return { status: "accepted", message: "The provider accepted your native voice message. Delivery is not yet confirmed." };
+  } catch (error) {
+    request.log.error({ error, deliveryId: delivery.id }, "Native voice send could not be confirmed");
+    await supabaseAdmin.from("voicebridge_deliveries").update({ status: "unknown", error: "Provider result not confirmed. Check with the recipient before trying again.", updated_at: new Date().toISOString() }).eq("id", delivery.id);
+    return reply.code(502).send({ message: "The send could not be confirmed. Check with the recipient before trying again to avoid duplicates." });
+  }
 });
 
 app.setNotFoundHandler((request, reply) => reply.code(404).send({ error: "NOT_FOUND", message: `Route ${request.method} ${request.url} was not found.` }));

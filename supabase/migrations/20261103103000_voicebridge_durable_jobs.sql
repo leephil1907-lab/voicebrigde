@@ -13,6 +13,7 @@ create table if not exists public.voicebridge_jobs (
   output_path text,
   provider_project_id text,
   provider_language_id text,
+  voice_consented_at timestamptz,
   error text,
   attempts integer not null default 0 check (attempts >= 0),
   max_attempts integer not null default 4 check (max_attempts between 1 and 10),

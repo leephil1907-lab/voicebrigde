@@ -8,9 +8,17 @@
   ],
   "scripts": {
     "dev:api": "npm run dev --workspace @voicebridge/api",
+    "dev:web": "npm run dev --workspace @voicebridge/web",
+    "dev:worker": "npm run dev:worker --workspace @voicebridge/api",
     "dev:mobile": "npm run start --workspace @voicebridge/mobile",
+    "build:web": "npm run build --workspace @voicebridge/web",
+    "build:api": "npm run build --workspace @voicebridge/api",
     "typecheck:api": "npm run typecheck --workspace @voicebridge/api",
-    "typecheck:mobile": "npm run typecheck --workspace @voicebridge/mobile"
+    "typecheck:web": "npm run typecheck --workspace @voicebridge/web",
+    "typecheck:mobile": "npm run typecheck --workspace @voicebridge/mobile",
+    "test:web": "npm run test --workspace @voicebridge/web",
+    "test:e2e:web": "npm run test:e2e --workspace @voicebridge/web",
+    "test:api": "npm run test --workspace @voicebridge/api"
   },
   "engines": {
     "node": ">=20"

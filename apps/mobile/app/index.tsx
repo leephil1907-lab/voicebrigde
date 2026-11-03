@@ -101,6 +101,8 @@ export default function HomeScreen() {
       const form = new FormData();
       form.append("sourceLanguage", "auto");
       form.append("targetLanguage", selectedLanguage.code);
+      // Recording and explicitly choosing Translate grants consent for this upload.
+      form.append("voiceConsent", "true");
       form.append("file", { uri: recordingUri, name: "voice-message.m4a", type: "audio/m4a" } as any);
       const { data: { session: activeSession } } = await supabase.auth.getSession();
       if (!activeSession) throw new Error("Your session expired. Sign in again.");

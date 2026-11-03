@@ -44,6 +44,7 @@ export async function sendWhatsAppBusinessVoiceMessage(
     method: "POST",
     headers: { Authorization: `Bearer ${input.accessToken}` },
     body: upload,
+    signal: AbortSignal.timeout(45_000),
   });
   const mediaData = await mediaResponse.json() as { id?: string; error?: { message?: string } };
   if (!mediaResponse.ok || !mediaData.id) {
@@ -56,6 +57,7 @@ export async function sendWhatsAppBusinessVoiceMessage(
       Authorization: `Bearer ${input.accessToken}`,
       "Content-Type": "application/json",
     },
+    signal: AbortSignal.timeout(45_000),
     body: JSON.stringify({
       messaging_product: "whatsapp",
       recipient_type: "individual",
