@@ -16,7 +16,8 @@ const env = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().optional(),
   SUPABASE_PUBLISHABLE_KEY: z.string().optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_SECRET_KEY: z.string().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   ELEVENLABS_API_KEY: z.string().optional(),
   MAX_AUDIO_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
 }).parse(process.env);
