@@ -222,18 +222,38 @@ test('sharing opens the device chooser with audio and never calls the delivery A
   await setup(page);
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'canShare', {value: ({files}: {files: File[]}) => files.length === 1});
-    Object.defineProperty(navigator, 'share', {value: async ({files}: {files: File[]}) => { (window as unknown as {sharedName: string}).sharedName = files[0].name; }});
+    Object.defineProperty(navigator, 'share', {value: async ({files}: {files: File[]}) => { (window as unknown as {sharedName: string; sharedType: string}).sharedName = files[0].name; (window as unknown as {sharedType: string}).sharedType = files[0].type; }});
   });
   await page.route('**/v1/voice/deliver', () => { throw new Error('Automatic delivery must not be called'); });
   await page.route('**/v1/voice/translate', route => route.fulfill({status:202,json:{id:jobId}}));
   await page.route(`**/v1/voice/translations/${jobId}`, route => route.fulfill({json:{id:jobId,status:'completed',stage:'completed',targetLanguage:'fr',sourceLanguage:'en',audioUrl:'http://localhost:3000/fake.ogg',error:null,createdAt:new Date().toISOString()}}));
-  await page.route('**/fake.ogg', route => route.fulfill({status:200,contentType:'audio/ogg',body:'audio-test'}));
+  const header = Buffer.alloc(47); header.write('OggS', 0); header[5] = 2; header[26] = 1; header[27] = 19; header.write('OpusHead', 28); header[36] = 1; header[37] = 1;
+  await page.route('**/fake.ogg', route => route.fulfill({status:200,contentType:'application/octet-stream',body:header}));
   await page.goto('/'); await signIn(page); await page.getByRole('button',{name:'Start recording'}).click(); await page.waitForTimeout(1300); await page.getByRole('button',{name:'Stop recording'}).click();
   await page.getByLabel('Translate into').selectOption('fr'); await page.getByLabel("I confirm this is my voice, or I have the speaker's permission to reproduce it.").check();
   await page.getByRole('button',{name:'Translate voice note'}).click();
   const share = page.getByRole('button',{name:'Share with an app'}).first(); await expect(share).toBeEnabled({timeout:15000}); await share.click();
   await expect.poll(() => page.evaluate(() => (window as unknown as {sharedName?: string}).sharedName)).toBe('voicebridge-fr.ogg');
-  await expect(page.getByText('No message is sent automatically.',{exact:false})).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as unknown as {sharedType?: string}).sharedType)).toBe('audio/ogg');
+  await expect(page.getByText('No message is sent automatically.',{exact:false}).first()).toBeVisible();
+});
+
+test('unsupported Android file sharing shows an error without sending or downloading', async ({ page }) => {
+  await setup(page);
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'canShare', {value: () => false});
+    Object.defineProperty(navigator, 'share', {value: () => { throw new Error('share must not be called'); }});
+  });
+  await page.route('**/v1/voice/translate', route => route.fulfill({status:202,json:{id:jobId}}));
+  await page.route(`**/v1/voice/translations/${jobId}`, route => route.fulfill({json:{id:jobId,status:'completed',stage:'completed',targetLanguage:'fr',sourceLanguage:'en',audioUrl:'http://localhost:3000/fake.ogg',error:null,createdAt:new Date().toISOString()}}));
+  const header = Buffer.alloc(47); header.write('OggS', 0); header[5] = 2; header[26] = 1; header[27] = 19; header.write('OpusHead', 28); header[36] = 1; header[37] = 1;
+  await page.route('**/fake.ogg', route => route.fulfill({status:200,body:header}));
+  let downloaded = false; page.on('download', () => { downloaded = true; });
+  await page.goto('/'); await signIn(page); await page.getByRole('button',{name:'Start recording'}).click(); await page.waitForTimeout(1300); await page.getByRole('button',{name:'Stop recording'}).click();
+  await page.getByLabel('Translate into').selectOption('fr'); await page.getByLabel("I confirm this is my voice, or I have the speaker's permission to reproduce it.").check();
+  await page.getByRole('button',{name:'Translate voice note'}).click(); const share = page.getByRole('button',{name:'Share with an app'}).first(); await expect(share).toBeEnabled({timeout:15000}); await share.click();
+  await expect(page.getByRole('status').filter({hasText:'This browser cannot share audio directly'})).toBeVisible();
+  expect(downloaded).toBe(false);
 });
 
 test('mobile account tab opens profile and signed-in user can sign out', async ({browser}) => {

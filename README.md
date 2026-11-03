@@ -47,16 +47,13 @@ Configure `ELEVENLABS_API_KEY` and ensure FFmpeg is installed (the root `Dockerf
 
 VoiceBridge currently exposes a curated set of 18 Dubbing v2 target languages: English (`en`), Spanish (`es`), French (`fr`), Portuguese (`pt`), German (`de`), Italian (`it`), Arabic (`ar`), Chinese (`zh`), Japanese (`ja`), Korean (`ko`), Hausa (`ha`), Yoruba (`yo`), Swahili (`sw`), Hindi (`hi`), Dutch (`nl`), Russian (`ru`), Turkish (`tr`) and Urdu (`ur`). The API returns this allowlist through `/v1/languages` and rejects target codes outside it. ElevenLabs Dubbing v2 supports 90+ languages; this curated list is the subset currently enabled in the VoiceBridge interface. See [ElevenLabs supported Dubbing languages](https://elevenlabs.io/docs/overview/capabilities/dubbing).
 
-## WhatsApp-first delivery
+## Sharing translated audio to WhatsApp
 
-Both WhatsApp paths are now represented in the implementation:
+The live web studio prepares the translated output as mono 48 kHz OGG/Opus using the existing FFmpeg worker. On supported Android browsers, **Share with an app** opens the system share sheet with an `audio/ogg` file. The user chooses WhatsApp, selects the recipient and confirms the send in WhatsApp. No personal account is linked and VoiceBridge does not send automatically. Download remains a separate, explicit action; the share button does not silently download.
 
-- **Personal WhatsApp:** the translated preview can be downloaded to the Android cache and shared through the native system sharesheet. The user selects WhatsApp, chooses the chat, and confirms sending. VoiceBridge shares mono OGG/Opus audio, but the personal-account share interface does not guarantee WhatsApp's native microphone-recorded voice-note bubble.
-- **WhatsApp Business:** `apps/api/src/messaging/whatsapp-business.ts` contains a server-side Cloud API adapter that uploads OGG/Opus audio and sends it with `audio.voice: true` so WhatsApp can render it as a native voice message from the registered Business number. The authenticated `POST /v1/voice/deliver` route is protected by the `VOICEBRIDGE_ALLOWED_USER_IDS` sender allowlist, requires preview and recipient-consent confirmations, and writes a `voicebridge_deliveries` record before sending. The send is currently synchronous; Meta webhook verification/status callbacks and an asynchronous delivery worker are still outstanding.
+WhatsApp controls how shared audio is displayed. The Web Share API cannot attach WhatsApp-specific voice-note or waveform metadata, so neither a voice-note bubble nor waveform bars can be guaranteed. Test on the target Android browser and WhatsApp version; a flat waveform has been observed. The website waveform is derived from the translated audio when browser decoding is supported and is not metadata supplied to WhatsApp.
 
-See [the WhatsApp integration architecture](docs/architecture/whatsapp-integration.md) for provider setup and production acceptance tests. Personal sharing requires the Expo FileSystem and Sharing modules. Business sending requires an eligible Meta Business Platform account, server-side credentials, an authorized recipient, and audio-worker conversion to OGG/Opus.
-
-For step-by-step live setup, see [Connect social platforms to the VoiceBridge website](docs/CONNECT_SOCIAL_PLATFORMS.md). It covers Meta WhatsApp Cloud API, Telegram BotFather, Render environment variables, sender authorization, and Android personal-WhatsApp sharing.
+If file sharing is unsupported, the site reports this rather than automatically downloading or sending. If preparation fails, use Refresh preview to retrieve a fresh audio link. A native Android app or unofficial linked-device transport is not required for this browser flow; neither is a production WhatsApp integration of the website.
 
 ## Durable jobs and authentication
 
