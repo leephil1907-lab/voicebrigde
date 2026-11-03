@@ -19,3 +19,9 @@ ElevenLabs documents an enterprise realtime translation WebSocket at `wss://api.
 ## Deployment checks
 
 Set Supabase Auth Site URL and allowlisted redirect URLs to the actual production HTTPS origin. A redirect to localhost on a phone cannot reach the deployed site. Apply migrations, check a private bucket, configure the existing server secrets, and test a real signup, translation and download. Never include keys in browser code or logs. Render deployment and live provider behavior have not been verified in this workspace.
+
+## Waveform investigation
+
+The standard Web Share API passes a file to the recipient app; it has no documented WhatsApp-specific voice-waveform field. VoiceBridge cannot force WhatsApp to use waveform metadata through that share sheet. A flat line does not prove the audio itself is faulty. The user observed a native-looking bubble but a flat line for both website sharing and file attachment on their device.
+
+For the unconnected pilot, `waveformFromPcm16` computes 64 normalized amplitude bins from decoded mono PCM; the experimental transport can supply these and a duration to a future linked-device driver. This is groundwork only: no FFmpeg decoding is wired into this helper, no provider driver is connected, no real WhatsApp delivery or waveform display has been tested, and some linked-device libraries may require constructing a lower-level message for metadata to survive. Never claim the current share-sheet waveform is fixed. A real implementation must derive metadata from the exact output, test silence and variable speech on both sending/receiving phones, and handle failed sends without duplicate retries.

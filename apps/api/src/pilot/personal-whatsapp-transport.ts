@@ -4,15 +4,16 @@ import { validatePilotSend, type PilotPolicy, type PilotSend } from './personal-
  * The production server does not instantiate this; a real socket, pairing,
  * authenticated endpoint and durable idempotency are still required. */
 export interface LinkedDeviceSocket {
-  sendMessage(jid: string, content: { audio: Buffer; mimetype: string; ptt: true }): Promise<{ key?: { id?: string | null } } | undefined>;
+  sendMessage(jid: string, content: { audio: Buffer; mimetype: string; ptt: true; waveform?: Uint8Array; seconds?: number }): Promise<{ key?: { id?: string | null } } | undefined>;
 }
-export async function sendPersonalVoicePilot(input: { policy: PilotPolicy; request: PilotSend; audio: Buffer; socket: LinkedDeviceSocket }): Promise<{ status: 'accepted'; messageId: string } | { status: 'unknown' }> {
+export async function sendPersonalVoicePilot(input: { policy: PilotPolicy; request: PilotSend; audio: Buffer; socket: LinkedDeviceSocket; metadata?: { waveform: Uint8Array; seconds: number } }): Promise<{ status: 'accepted'; messageId: string } | { status: 'unknown' }> {
   const { recipient } = validatePilotSend(input.policy, input.request);
   // This is a basic container signature check, not full Opus validation. The caller
   // must supply only the completed server-transcoded mono Ogg/Opus job output.
   if (input.audio.length < 4 || input.audio.length > 16 * 1024 * 1024 || input.audio.subarray(0, 4).toString('ascii') !== 'OggS') throw new Error('A supported Ogg/Opus voice note is required.');
+  if (input.metadata && (input.metadata.waveform.length !== 64 || [...input.metadata.waveform].some(x => x > 100) || !Number.isInteger(input.metadata.seconds) || input.metadata.seconds < 1 || input.metadata.seconds > 120)) throw new Error('Invalid waveform metadata.');
   try {
-    const result = await input.socket.sendMessage(`${recipient}@s.whatsapp.net`, { audio: input.audio, mimetype: 'audio/ogg; codecs=opus', ptt: true });
+    const result = await input.socket.sendMessage(`${recipient}@s.whatsapp.net`, { audio: input.audio, mimetype: 'audio/ogg; codecs=opus', ptt: true, ...(input.metadata ? {waveform: input.metadata.waveform, seconds: input.metadata.seconds} : {}) });
     const id = result?.key?.id;
     if (!id) return {status:'unknown'};
     return {status:'accepted',messageId:id};
