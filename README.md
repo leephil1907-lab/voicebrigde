@@ -61,7 +61,7 @@ See [the WhatsApp integration architecture](docs/architecture/whatsapp-integrati
 - The separate `dubbing-worker` process claims jobs atomically with `FOR UPDATE SKIP LOCKED`, heartbeats its lease, resumes provider work after restarts, and retries failed attempts with backoff.
 - The queue uses Postgres directly; Redis and BullMQ are not required for this first durable-worker implementation.
 
-Run the API and worker as two services from `apps/api/Dockerfile`: the API starts with `node dist/server.js`; the worker service runs `npm run worker`.
+For Render Free, the API and durable worker run as two child processes inside one free web service. The Docker image installs FFmpeg, builds the API and web studio, and starts both processes with `npm run start:render`. The Postgres queue remains durable in Supabase when the Render instance sleeps or restarts.
 
 ## Technology baseline
 
@@ -71,7 +71,13 @@ Run the API and worker as two services from `apps/api/Dockerfile`: the API start
 - Background processing: Postgres queue with atomic worker leases
 - Audio processing: FFmpeg in a separate server-side worker
 - Speech, translation and voice generation: provider adapters; credentials remain server-side
-- Deployment: Railway-compatible API and worker services
+- Deployment: Render Free single web service (API + worker in one container); separate always-on worker can be added later on a paid plan
+
+## Render Free deployment
+
+The repository includes a Render Blueprint in `render.yaml`. Create a Blueprint from this repository and select the free web-service plan. The one service hosts the API, web studio and durable worker together; no paid background-worker service is provisioned. Add `SUPABASE_SECRET_KEY` and `ELEVENLABS_API_KEY` as secret environment variables in Render. The Supabase URL, publishable key and private bucket name are prefilled in the Blueprint.
+
+Render Free services can spin down after inactivity. While the service is asleep, the worker is not processing jobs; queued jobs remain in Supabase and resume when the service starts again. This is suitable for a no-cost initial deployment, not continuous or time-sensitive processing. See [Render Free deployment notes](docs/RENDER_FREE_DEPLOYMENT.md).
 
 ## Development status
 
