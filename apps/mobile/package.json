@@ -20,7 +20,7 @@
     "react-native-screens": "~4.16.0",
     "expo-file-system": "~19.0.17",
     "expo-sharing": "~14.0.8",
-    "@supabase/supabase-js": "^2.58.0",
+    "@supabase/supabase-js": "2.58.0",
     "@react-native-async-storage/async-storage": "2.2.0"
   },
   "devDependencies": {
