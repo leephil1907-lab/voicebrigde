@@ -32,6 +32,7 @@ export async function sendWhatsAppBusinessVoiceMessage(
     throw new Error("WhatsApp voice-note delivery requires OGG audio encoded with Opus.");
   }
   if (!input.audio.length) throw new Error("Translated audio is empty.");
+  if (input.audio.length > 16 * 1024 * 1024) throw new Error("WhatsApp audio messages must not exceed 16 MB.");
 
   const baseUrl = `https://graph.facebook.com/${input.graphApiVersion}/${encodeURIComponent(input.phoneNumberId)}`;
   const upload = new FormData();
