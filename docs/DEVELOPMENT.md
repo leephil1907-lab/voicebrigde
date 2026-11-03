@@ -71,16 +71,18 @@ Use the deployed HTTPS API URL or your development computer's LAN IP. Do not use
 
 The app provides email/password sign-up and sign-in. If Supabase email confirmation is enabled, confirm the new account from the email before signing in.
 
-## 4. Deploy on Railway
+## 4. Deploy on Render Free
 
-Deploy two services from `apps/api/Dockerfile` and the same repository commit:
+Use the repository Blueprint at `render.yaml` to create one free Docker web service. The Docker image builds the API and web studio, installs FFmpeg, and starts the API plus the durable worker in the same container.
 
-| Service | Start command |
-|---|---|
-| VoiceBridge API | `node dist/server.js` |
-| VoiceBridge worker | `npm run worker` |
+Required secret environment variables:
 
-Set the server-side Supabase and ElevenLabs variables on both services. Attach the public domain only to the API service. The worker does not expose a port.
+- `SUPABASE_SECRET_KEY`
+- `ELEVENLABS_API_KEY`
+
+The Blueprint pre-fills the Supabase project URL, publishable key, private bucket, FFmpeg path and audio limits. The Render service automatically receives `PORT`; the API listens on it.
+
+The free instance can spin down after inactivity. The worker pauses while the instance is asleep; jobs remain queued in Supabase and resume after the next service start. This is a cost-free starter arrangement, not an always-on processing guarantee. See [Render Free deployment notes](./RENDER_FREE_DEPLOYMENT.md).
 
 ## API endpoints
 
@@ -116,12 +118,12 @@ npm install
 npm run typecheck
 ```
 
-GitHub Actions runs API and mobile TypeScript checks on pushes and pull requests to `main`.
+GitHub Actions runs API and mobile TypeScript checks, API/web tests and builds, plus a Docker image build on pushes and pull requests to `main`.
 
 ## Remaining production work
 
 - Apply and verify the migration on the selected Supabase project.
-- Configure Railway API and worker services and all secrets.
+- Configure the Render Free Blueprint and add both required secrets.
 - Add account deletion, recording retention and scheduled object cleanup.
 - Add billing-aware per-user quotas.
 - Finish WhatsApp Business sender authorization, persisted send jobs and Meta delivery webhooks.
