@@ -209,13 +209,15 @@ async function processDubbingJob(job: DubbingJob, upload: { buffer: Buffer; file
       );
       languageStatus = current.status;
       outputUrl = current.outputs?.lossless_audio;
-      if (languageStatus === "failed") throw new Error(current.error?.message || "Translated voice generation failed.");\n      if (languageStatus === "stale") throw new Error("The translation became outdated before audio was downloaded. Please try again.");
+      if (languageStatus === "failed") throw new Error(current.error?.message || "Translated voice generation failed.");
+      if (languageStatus === "stale") throw new Error("The translation became outdated before audio was downloaded. Please try again.");
     }
     if (languageStatus !== "completed" || !outputUrl) throw new Error("Voice generation timed out. Please try again.");
 
     const audioResponse = await fetch(outputUrl, { signal: AbortSignal.timeout(60_000) });
     if (!audioResponse.ok) throw new Error("Could not retrieve the completed translated audio.");
-    const wavAudio = Buffer.from(await audioResponse.arrayBuffer());\n    if (!wavAudio.length || wavAudio.length > 100 * 1024 * 1024) throw new Error("The generated audio is empty or exceeds the 100 MB processing limit.");
+    const wavAudio = Buffer.from(await audioResponse.arrayBuffer());
+    if (!wavAudio.length || wavAudio.length > 100 * 1024 * 1024) throw new Error("The generated audio is empty or exceeds the 100 MB processing limit.");
     const voiceNoteAudio = await convertWavToOggOpus(wavAudio);
     try {
       const [sourceTranscript, targetTranscript] = await Promise.all([
@@ -229,7 +231,8 @@ async function processDubbingJob(job: DubbingJob, upload: { buffer: Buffer; file
       app.log.warn({ jobId: job.id, error: transcriptError }, "Transcript retrieval failed; audio preview remains available");
     }
     const previewId = randomUUID();
-    audioJobs.set(previewId, { buffer: voiceNoteAudio, contentType: "audio/ogg; codecs=opus", expiresAt: Date.now() + 30 * 60 * 1000 });\n    for (const [key, item] of audioJobs) if (item.expiresAt <= Date.now()) audioJobs.delete(key);
+    audioJobs.set(previewId, { buffer: voiceNoteAudio, contentType: "audio/ogg; codecs=opus", expiresAt: Date.now() + 30 * 60 * 1000 });
+    for (const [key, item] of audioJobs) if (item.expiresAt <= Date.now()) audioJobs.delete(key);
     job.audioUrl = `/v1/voice/previews/${previewId}`;
     job.status = "completed";
   } catch (error) {
@@ -250,7 +253,8 @@ app.post("/v1/voice/translate", { config: { rateLimit: { max: 5, timeWindow: "15
       else if (part.fieldname === "sourceLanguage") sourceLanguage = String(part.value);
       else if (part.fieldname === "targetLanguage") targetLanguage = String(part.value);
     }
-    if (!upload) return reply.code(400).send({ error: "AUDIO_REQUIRED", message: "Record or select an audio message first." });\n    if (!upload.mimetype.startsWith("audio/")) return reply.code(415).send({ error: "UNSUPPORTED_MEDIA_TYPE", message: "Upload an audio recording in a supported audio format." });
+    if (!upload) return reply.code(400).send({ error: "AUDIO_REQUIRED", message: "Record or select an audio message first." });
+    if (!upload.mimetype.startsWith("audio/")) return reply.code(415).send({ error: "UNSUPPORTED_MEDIA_TYPE", message: "Upload an audio recording in a supported audio format." });
     if (!languages.some((language) => language.code === targetLanguage)) return reply.code(400).send({ error: "UNSUPPORTED_LANGUAGE", message: "Choose a language currently enabled in VoiceBridge." });
     const id = randomUUID();
     const job: DubbingJob = {
