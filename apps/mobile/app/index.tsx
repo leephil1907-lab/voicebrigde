@@ -163,7 +163,7 @@ export default function HomeScreen() {
             {recorderState.isRecording ? "Recording your voice…" : recordingUri ? "Recording saved on this device" : "Record a message in the language you speak; VoiceBridge detects it automatically"}
           </Text>
 
-          <Pressable onPress={toggleRecording} style={({ pressed }) => [styles.recordButton, pressed && styles.pressed]}>
+          <Pressable onPress={toggleRecording} disabled={busy} style={({ pressed }) => [styles.recordButton, pressed && styles.pressed, busy && styles.translateDisabled]}>
             <View style={styles.recordIcon}><View style={recorderState.isRecording ? styles.stopIcon : styles.micIcon} /></View>
             <Text style={styles.recordButtonText}>{recorderState.isRecording ? "Stop recording" : "Start recording"}</Text>
           </Pressable>
@@ -171,7 +171,7 @@ export default function HomeScreen() {
           <Text style={styles.sectionLabel}>TRANSLATE INTO</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.languageList}>
             {languages.map((language, index) => (
-              <Pressable key={language.code} onPress={() => { setLanguageIndex(index); setPreviewUrl(null); setSourceTranscript(""); setTranslatedTranscript(""); setTranslationStatus(""); }} style={[styles.languageChip, languageIndex === index && styles.languageChipActive]}>
+              <Pressable key={language.code} disabled={busy} onPress={() => { setLanguageIndex(index); setPreviewUrl(null); setSourceTranscript(""); setTranslatedTranscript(""); setTranslationStatus(""); }} style={[styles.languageChip, languageIndex === index && styles.languageChipActive]}>
                 <Text style={[styles.languageName, languageIndex === index && styles.languageNameActive]}>{language.label}</Text>
                 <Text style={[styles.languageNative, languageIndex === index && styles.languageNameActive]}>{language.native}</Text>
               </Pressable>
