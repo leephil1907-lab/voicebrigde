@@ -163,9 +163,9 @@ app.get("/health", async () => ({
   status: "ok",
   service: "voicebridge-api",
   capabilities: {
-    transcription: Boolean(env.OPENAI_API_KEY),
-    translation: Boolean(env.OPENAI_API_KEY),
+    audioToAudioDubbing: Boolean(env.ELEVENLABS_API_KEY),
     voiceCloning: Boolean(env.ELEVENLABS_API_KEY),
+    whatsappVoiceNoteEncoding: true,
     audioPreview: true,
   },
   timestamp: new Date().toISOString(),
@@ -205,7 +205,7 @@ async function convertWavToOggOpus(wav: Buffer): Promise<Buffer> {
     await new Promise<void>((resolve, reject) => {
       const child = spawn(env.FFMPEG_PATH, [
         "-hide_banner", "-loglevel", "error", "-y", "-i", inputPath,
-        "-vn", "-c:a", "libopus", "-b:a", "32k", "-vbr", "on",
+        "-vn", "-ac", "1", "-ar", "48000", "-c:a", "libopus", "-b:a", "24k", "-vbr", "on",
         "-application", "voip", "-f", "ogg", outputPath,
       ]);
       let stderr = "";
