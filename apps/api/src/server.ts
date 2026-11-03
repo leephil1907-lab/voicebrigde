@@ -6,6 +6,10 @@ import rateLimit from "@fastify/rate-limit";
 import multipart, { type MultipartFile } from "@fastify/multipart";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -22,6 +26,7 @@ const envSchema = z.object({
   ELEVENLABS_STYLE: z.coerce.number().min(0).max(1).default(0),
   ELEVENLABS_SPEAKER_BOOST: z.enum(["true", "false"]).default("true").transform((value) => value === "true"),
   MAX_AUDIO_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
+  FFMPEG_PATH: z.string().default("ffmpeg"),
 });
 const env = envSchema.parse(process.env);
 const app = Fastify({
@@ -191,6 +196,29 @@ app.post("/v1/voice-profiles", async (request, reply) => {
   }
 });
 
+async function convertWavToOggOpus(wav: Buffer): Promise<Buffer> {
+  const directory = await mkdtemp(join(tmpdir(), "voicebridge-audio-"));
+  const inputPath = join(directory, "translated.wav");
+  const outputPath = join(directory, "translated.ogg");
+  try {
+    await writeFile(inputPath, wav);
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn(env.FFMPEG_PATH, [
+        "-hide_banner", "-loglevel", "error", "-y", "-i", inputPath,
+        "-vn", "-c:a", "libopus", "-b:a", "32k", "-vbr", "on",
+        "-application", "voip", "-f", "ogg", outputPath,
+      ]);
+      let stderr = "";
+      child.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+      child.once("error", reject);
+      child.once("close", (code) => code === 0 ? resolve() : reject(new Error(stderr.slice(-800) || "FFmpeg audio conversion failed.")));
+    });
+    return await readFile(outputPath);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
 type DubbingJob = {
   id: string; projectId: string; languageId: string | null;
   status: "queued" | "preparing" | "processing" | "completed" | "failed";
@@ -254,9 +282,10 @@ async function processDubbingJob(job: DubbingJob, upload: { buffer: Buffer; file
 
     const audioResponse = await fetch(outputUrl);
     if (!audioResponse.ok) throw new Error("Could not retrieve the completed translated audio.");
-    const audio = Buffer.from(await audioResponse.arrayBuffer());
+    const wavAudio = Buffer.from(await audioResponse.arrayBuffer());
+    const voiceNoteAudio = await convertWavToOggOpus(wavAudio);
     const previewId = randomUUID();
-    audioJobs.set(previewId, { buffer: audio, contentType: "audio/wav", expiresAt: Date.now() + 30 * 60 * 1000 });
+    audioJobs.set(previewId, { buffer: voiceNoteAudio, contentType: "audio/ogg; codecs=opus", expiresAt: Date.now() + 30 * 60 * 1000 });
     job.audioUrl = `/v1/voice/previews/${previewId}`;
     job.status = "completed";
   } catch (error) {
