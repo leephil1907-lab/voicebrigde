@@ -63,7 +63,7 @@ For step-by-step live setup, see [Connect social platforms to the VoiceBridge we
 - The separate `dubbing-worker` process claims jobs atomically with `FOR UPDATE SKIP LOCKED`, heartbeats its lease, resumes provider work after restarts, and retries failed attempts with backoff.
 - The queue uses Postgres directly; Redis and BullMQ are not required for this first durable-worker implementation.
 
-For Render Free, the API and durable worker run as two child processes inside one free web service. The Docker image installs FFmpeg, builds the API and web studio, and starts both processes with `npm run start:render`. The Postgres queue remains durable in Supabase when the Render instance sleeps or restarts.
+For Render Free, the API and durable worker run as two child processes inside one free web service. The Docker image installs FFmpeg, builds the API and web studio, and starts both processes with `npm run start:render`. The Postgres queue remains durable in Supabase when the Render instance sleeps or restarts. Until billing and credit metering are implemented, each account is limited to three translations per rolling 24 hours (configurable with `MAX_TRANSLATIONS_PER_USER_PER_DAY`) to cap provider spend.
 
 ## Technology baseline
 
