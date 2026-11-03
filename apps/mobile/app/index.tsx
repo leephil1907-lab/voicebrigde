@@ -52,7 +52,7 @@ export default function HomeScreen() {
       if (!response.ok) throw new Error(data.message || "Voice translation failed.");
       setTranslationStatus("Preparing the original speaker's translated voice…");
       let job = data;
-      for (let attempt = 0; attempt < 150; attempt++) {
+      for (let attempt = 0; attempt < 360; attempt++) {
         await new Promise((resolve) => setTimeout(resolve, 3000));
         const statusResponse = await fetch(API_URL + "/v1/voice/translations/" + data.id);
         const statusData = await statusResponse.json();
@@ -186,9 +186,9 @@ export default function HomeScreen() {
               <Text style={styles.previewButtonText}>▶  Play cloned-voice preview</Text>
             </Pressable>
             <Pressable onPress={shareToWhatsApp} disabled={!previewUrl || sharing} style={[styles.shareButton, (!previewUrl || sharing) && styles.translateDisabled]}>
-              <Text style={styles.shareButtonText}>{sharing ? "Preparing audio…" : "Share translated voice message · WhatsApp / other apps"}</Text>
+              <Text style={styles.shareButtonText}>{sharing ? "Preparing audio…" : "Share via personal WhatsApp"}</Text>
             </Pressable>
-            <Text style={styles.shareHint}>Personal WhatsApp sharing may still appear as an audio attachment. Native voice-note bubbles are guaranteed only through supported WhatsApp voice-message APIs, such as WhatsApp Business Cloud API.</Text>
+            <Text style={styles.shareHint}>This shares from your personal WhatsApp account. WhatsApp may show it as an audio attachment; the public personal-account share interface cannot guarantee a native voice-note bubble.</Text>
           </View> : null}
           <Text style={styles.disclaimer}>{translationStatus || "Dubbing v2 automatically matches the speaker from each recording. Preview links expire after 30 minutes in this build."}</Text>
         </View>
