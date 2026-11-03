@@ -86,11 +86,15 @@ The free instance can spin down after inactivity. The worker pauses while the in
 
 ## API endpoints
 
-- `GET /health` — public health check.
-- `GET /v1/languages` — public supported-language list.
-- `POST /v1/voice/translate` — authenticated multipart upload; returns HTTP 202 after source audio is stored and the job is queued.
+- `GET /health` — public API/database/private-storage readiness check. The Render process supervisor also stops the service if either the API or worker process exits.
+- `GET /config` — public browser configuration; never returns provider or Supabase secret keys.
+- `GET /v1/languages` — the 18 target languages currently enabled by VoiceBridge.
+- `GET /v1/voice/delivery-capabilities` — authenticated per-user WhatsApp/Telegram readiness and sender-allowlist status.
+- `POST /v1/voice/translate` — authenticated multipart upload; requires voice-permission confirmation and returns HTTP 202 after source audio is stored and the job is queued. The temporary default account cap is three translation jobs per rolling 24 hours until billing/credit metering is added.
 - `GET /v1/voice/translations/:id` — authenticated status and signed audio URL; only the owning user can retrieve it.
 - `GET /v1/voice/translations` — authenticated latest 50 jobs for the current user.
+- `POST /v1/voice/understand` — authenticated incoming-voice-note transcription/English reading; requires processing-consent confirmation.
+- `POST /v1/voice/deliver` — authenticated, allowlist-gated WhatsApp Business or Telegram send; requires a completed owned job, idempotency key, preview confirmation and recipient-consent confirmation. A delivery record is persisted, but sending is synchronous and Meta webhook status updates are not yet implemented.
 
 Protected routes require `Authorization: Bearer <Supabase access token>`.
 
@@ -127,7 +131,7 @@ The live Render and Supabase services are deployed. Automated CI covers API/web 
 - Configure Supabase Auth Site URL as `https://voicebridge-9unm.onrender.com` and add that URL to Redirect URLs. Enable Email sign-in and verify confirmation and reset email delivery. Use a suitable SMTP provider before inviting public users.
 - Create a test VoiceBridge account and verify signup, confirmation, sign-in, password reset, recovery and sign-out.
 - Run one short real ElevenLabs translation and listen to the generated OGG/Opus output. This uses provider credits; the app has not consumed a test translation during deployment verification.
-- Connect Meta WhatsApp Cloud API and/or Telegram by following [the social platform guide](./CONNECT_SOCIAL_PLATFORMS.md). Add the Supabase user UUID to `VOICEBRIDGE_ALLOWED_USER_IDS`.
+- Connect Meta WhatsApp Cloud API and/or Telegram by following [the social platform guide](./CONNECT_SOCIAL_PLATFORMS.md). Add the Supabase user UUID to `VOICEBRIDGE_ALLOWED_USER_IDS`. The authenticated send route and persisted delivery record already exist; Meta webhook verification/status callbacks and a separate asynchronous delivery worker remain outstanding.
 - Test each messaging channel using accounts and numbers controlled by the owner. Meta delivery-status webhooks and a complete delivery-status UI are still outstanding; provider acceptance is not proof of recipient delivery.
 - Publish the operator's verified support/privacy email, define an audio retention period, and implement self-service or documented deletion. The current deployment has no automatic audio expiry or self-service deletion.
 - Test recording, importing, playback and personal WhatsApp sharing on a physical Android device. Personal WhatsApp sharing does not guarantee the native voice-note bubble.
