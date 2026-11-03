@@ -1,5 +1,20 @@
 export function BrandMark({ small = false }: { small?: boolean }) {
-  return <span className={`brand-mark ${small ? "small" : ""}`} aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path className="brand-wave-bar bar-1" d="M5 13v6" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" /><path className="brand-wave-bar bar-2" d="M10.5 8v16" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" /><path className="brand-wave-bar bar-3" d="M16 4v24" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" /><path className="brand-wave-bar bar-4" d="M21.5 10v12" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" /><path className="brand-wave-bar bar-5" d="M27 13v6" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round" /></svg></span>;
+  return (
+    <span className={`brand-mark ${small ? "small" : ""}`} aria-hidden="true">
+      <svg viewBox="0 0 40 40" fill="none">
+        <path d="M5.5 25.5C9.2 13.8 14.2 8 20 8s10.8 5.8 14.5 17.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" opacity=".42" />
+        <path d="M8 27.5C11.1 19.4 15.1 15.4 20 15.4s8.9 4 12 12.1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" opacity=".7" />
+        <g className="brand-wave-bar" stroke="currentColor" strokeWidth="2.7" strokeLinecap="round">
+          <path d="M7 22v5" />
+          <path d="M13.5 17v14" />
+          <path d="M20 12v21" />
+          <path d="M26.5 17v14" />
+          <path d="M33 22v5" />
+        </g>
+        <path d="M12 34h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity=".55" />
+      </svg>
+    </span>
+  );
 }
 
 export function Brand() {
