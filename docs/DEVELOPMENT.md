@@ -4,79 +4,125 @@
 
 - Node.js 22 or newer
 - npm
-- Expo Go on an Android phone for an early UI preview
-- FFmpeg installed for local API development
-- Git
+- Expo Go on an Android phone
+- FFmpeg for local worker development
+- A Supabase project with Auth, Postgres and Storage enabled
+- An ElevenLabs API key with Dubbing v2 access
 
-## API
+## 1. Apply the Supabase migration
 
-From the repository root:
+Apply `supabase/migrations/20261103103000_voicebridge_durable_jobs.sql` to the VoiceBridge Supabase project using its SQL Editor or linked CLI migration workflow. The migration creates the private audio bucket, durable job table, RLS policy and restricted worker-queue RPCs.
+
+Confirm the `public` schema is exposed to the Supabase Data API. The migration grants only the required table privileges and keeps RLS enabled.
+
+## 2. Configure the API and worker
+
+Copy the root environment template:
+
+```bash
+cp .env.example .env
+```
+
+Set:
+
+- `SUPABASE_URL`
+- `SUPABASE_PUBLISHABLE_KEY` (or legacy `SUPABASE_ANON_KEY`)
+- `SUPABASE_SECRET_KEY` (preferred) or legacy `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_STORAGE_BUCKET=voicebridge-private`
+- `ELEVENLABS_API_KEY`
+- `FFMPEG_PATH=ffmpeg`
+
+The Supabase secret/service-role key is server-only. Never put it in Expo variables or commit it.
+
+Install dependencies and start the API:
 
 ```bash
 cd apps/api
 npm install
-cp ../../.env.example ../../.env
-```
-
-Set `ELEVENLABS_API_KEY` in the root `.env` file. Do not put provider credentials in the mobile app.
-
-Start the API:
-
-```bash
 npm run dev
 ```
 
-The API listens on port 8080 by default. Check `GET /health` to confirm that it is running.
+In a second terminal, start the durable worker:
 
-## Android mobile app
+```bash
+cd apps/api
+npm run dev:worker
+```
 
-From the repository root:
+The API listens on port 8080. The worker has no HTTP listener. Check `GET /health` for API readiness.
+
+## 3. Configure Android
+
+Copy `apps/mobile/.env.example` to `apps/mobile/.env` and set:
+
+- `EXPO_PUBLIC_API_URL`
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+
+Install and launch:
 
 ```bash
 cd apps/mobile
 npm install
-cp .env.example .env
-```
-
-Edit `apps/mobile/.env` and set `EXPO_PUBLIC_API_URL`:
-
-- For a deployed API, use its HTTPS URL.
-- For local development with the API running on your computer, use the computer's LAN IP, for example `http://192.168.1.20:8080`.
-- Do not use `localhost` or `127.0.0.1` on a physical Android phone; those addresses point to the phone itself.
-
-Start Expo:
-
-```bash
 npx expo start --tunnel
 ```
 
-Scan the QR code with Expo Go and grant microphone access. If the local HTTP API is unreachable, check that the phone and computer are on the same network and that the computer firewall allows port 8080.
+Use the deployed HTTPS API URL or your development computer's LAN IP. Do not use `localhost` or `127.0.0.1` on a physical Android phone.
 
-## Translation API
+The app provides email/password sign-up and sign-in. If Supabase email confirmation is enabled, confirm the new account from the email before signing in.
 
-- Health: `GET /health`
-- Supported languages: `GET /v1/languages`
-- Start Dubbing v2 translation: `POST /v1/voice/translate` (multipart: `sourceLanguage=auto`, `targetLanguage`, `file`)
-- Poll translation: `GET /v1/voice/translations/:id`
-- Preview audio: `GET /v1/voice/previews/:id` (expires after 30 minutes)
+## 4. Deploy on Railway
 
-The translation route currently allows five starts per IP address per 15 minutes. This is a temporary safeguard; authenticated accounts and per-user quotas are still required before production.
+Deploy two services from `apps/api/Dockerfile` and the same repository commit:
 
-## WhatsApp behavior
+| Service | Start command |
+|---|---|
+| VoiceBridge API | `node dist/server.js` |
+| VoiceBridge worker | `npm run worker` |
 
-Personal WhatsApp uses Android's system share sheet with an OGG/Opus audio file. WhatsApp may show the recording as an audio attachment; the personal-account share flow does not guarantee a native voice-note bubble. The official WhatsApp Business Cloud API adapter is implemented separately, but no public send endpoint is enabled until account authentication, sender authorization, durable send records and webhook tracking are in place.
+Set the server-side Supabase and ElevenLabs variables on both services. Attach the public domain only to the API service. The worker does not expose a port.
+
+## API endpoints
+
+- `GET /health` — public health check.
+- `GET /v1/languages` — public supported-language list.
+- `POST /v1/voice/translate` — authenticated multipart upload; returns HTTP 202 after source audio is stored and the job is queued.
+- `GET /v1/voice/translations/:id` — authenticated status and signed audio URL; only the owning user can retrieve it.
+- `GET /v1/voice/translations` — authenticated latest 50 jobs for the current user.
+
+Protected routes require `Authorization: Bearer <Supabase access token>`.
+
+## Queue and recovery behavior
+
+Postgres stores job state and provider IDs. The worker claims jobs atomically using `FOR UPDATE SKIP LOCKED`, refreshes a two-minute lease every 30 seconds, and retries failures up to four attempts with backoff. A new worker process can reclaim a job after the old worker's lease expires and resume from persisted provider IDs.
+
+The private Storage bucket stores source and translated audio under `{user_id}/{job_id}/`. The API creates a 30-minute signed output URL only after verifying job ownership.
 
 ## Validation
 
-Run the API and mobile type checks:
-
 ```bash
-cd apps/api && npm install && npm run typecheck && npm run build
-cd ../mobile && npm install && npm run typecheck
+cd apps/api
+npm install
+npm run typecheck
+npm run build
+npm run dev:worker
 ```
 
-GitHub Actions runs these checks on pushes and pull requests to `main`.
+In another terminal:
 
-## Production gaps
+```bash
+cd apps/mobile
+npm install
+npm run typecheck
+```
 
-Translation jobs and preview audio are currently held in process memory. A restart loses active jobs and preview assets. Before production, add persistent job storage, a durable worker queue, private object storage, authenticated accounts, per-user quotas, WhatsApp Business sender authorization and Meta delivery webhooks. End-to-end voice-note presentation must be tested on real Android devices and WhatsApp versions.
+GitHub Actions runs API and mobile TypeScript checks on pushes and pull requests to `main`.
+
+## Remaining production work
+
+- Apply and verify the migration on the selected Supabase project.
+- Configure Railway API and worker services and all secrets.
+- Add account deletion, recording retention and scheduled object cleanup.
+- Add billing-aware per-user quotas.
+- Finish WhatsApp Business sender authorization, persisted send jobs and Meta delivery webhooks.
+- Run real provider, API restart, worker crash/recovery, cross-user isolation and Android device tests.
