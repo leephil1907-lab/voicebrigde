@@ -5,7 +5,7 @@ import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, useAudioRecorderState, useAudioPlayer } from "expo-audio";
 
-const API_URL = (process.env.EXPO_PUBLIC_API_URL || "http://127.0.0.1:8080").replace(/\/$/, "");
+const API_URL = (process.env.EXPO_PUBLIC_API_URL || "").replace(/\/$/, "");
 
 const languages = [
   { code: "es", label: "Spanish", native: "Español" },
@@ -28,8 +28,6 @@ export default function HomeScreen() {
   const [languageIndex, setLanguageIndex] = useState(0);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [translatedText, setTranslatedText] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [translationStatus, setTranslationStatus] = useState("");
@@ -40,8 +38,9 @@ export default function HomeScreen() {
 
   async function translateRecording() {
     if (!recordingUri) return;
+    if (!API_URL) return Alert.alert("API address required", "Set EXPO_PUBLIC_API_URL in apps/mobile/.env to your deployed API URL or your computer’s LAN IP.");
     setBusy(true);
-    setTranscript(""); setTranslatedText(""); setPreviewUrl(null); setTranslationStatus("Uploading your recording…");
+    setPreviewUrl(null); setTranslationStatus("Uploading your recording…");
     try {
       const form = new FormData();
       form.append("sourceLanguage", "auto");
@@ -64,8 +63,6 @@ export default function HomeScreen() {
       }
       if (job.status !== "completed" || !job.audioUrl) throw new Error("This translation is taking longer than expected. Please try again.");
       const url = API_URL + job.audioUrl;
-      setTranscript("Source language is detected automatically from your recording.");
-      setTranslatedText("Voice translated into " + selectedLanguage.label + ". Preview the recording before sharing.");
       setPreviewUrl(url);
       setTranslationStatus("Translation ready");
       await player.replace({ uri: url });
@@ -78,6 +75,7 @@ export default function HomeScreen() {
 
   async function shareToWhatsApp() {
     if (!previewUrl) return Alert.alert("Translation required", "Generate and preview a translated voice message first.");
+    if (!API_URL) return Alert.alert("API address required", "Set EXPO_PUBLIC_API_URL in apps/mobile/.env.");
     setSharing(true);
     try {
       if (!(await Sharing.isAvailableAsync())) throw new Error("The Android share sheet is not available on this device.");
@@ -140,7 +138,7 @@ export default function HomeScreen() {
           <View style={styles.panelTop}>
             <View>
               <Text style={styles.panelTitle}>New voice message</Text>
-              <Text style={styles.panelHint}>Original language · English</Text>
+              <Text style={styles.panelHint}>Source language · Auto-detected</Text>
             </View>
             <View style={styles.liveBadge}><View style={styles.liveDot} /><Text style={styles.liveText}>READY</Text></View>
           </View>
@@ -177,13 +175,11 @@ export default function HomeScreen() {
           <Pressable onPress={translateRecording} disabled={!recordingUri || busy} style={[styles.translateButton, (!recordingUri || busy) && styles.translateDisabled]}>
             <Text style={styles.translateButtonText}>{busy ? "Processing your voice…" : "✦  Translate voice · Preserve expression"}</Text>
           </Pressable>
-          {(transcript || translatedText) ? <View style={styles.resultCard}>
-            <Text style={styles.sectionLabel}>SOURCE AUDIO</Text>
-            <Text style={styles.resultText}>{transcript}</Text>
-            <Text style={styles.sectionLabel}>TARGET AUDIO · {selectedLanguage.label.toUpperCase()}</Text>
-            <Text style={styles.resultText}>{translatedText}</Text>
+          {previewUrl ? <View style={styles.resultCard}>
+            <Text style={styles.sectionLabel}>TRANSLATED VOICE MESSAGE · {selectedLanguage.label.toUpperCase()}</Text>
+            <Text style={styles.resultText}>Your translated audio is ready. Listen before sharing it with your recipient.</Text>
             <Pressable onPress={() => { if (previewUrl) { player.replace({ uri: previewUrl }); player.play(); } }} disabled={!previewUrl} style={styles.previewButton}>
-              <Text style={styles.previewButtonText}>▶  Play cloned-voice preview</Text>
+              <Text style={styles.previewButtonText}>▶  Play translated voice preview</Text>
             </Pressable>
             <Pressable onPress={shareToWhatsApp} disabled={!previewUrl || sharing} style={[styles.shareButton, (!previewUrl || sharing) && styles.translateDisabled]}>
               <Text style={styles.shareButtonText}>{sharing ? "Preparing audio…" : "Share via personal WhatsApp"}</Text>
