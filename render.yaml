@@ -1,8 +1,8 @@
 services:
   - type: web
-    name: voicebridge-api
+    name: voicebridge
     runtime: docker
-    plan: 0.5c-512mb
+    plan: free
     region: frankfurt
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
@@ -13,7 +13,7 @@ services:
       - key: HOST
         value: 0.0.0.0
       - key: CORS_ORIGIN
-        value: https://voicebridge-api.onrender.com,http://localhost:8081,http://localhost:3000
+        value: https://voicebridge.onrender.com,http://localhost:8081,http://localhost:3000
       - key: SUPABASE_URL
         value: https://kggllnqkryquornprphu.supabase.co
       - key: SUPABASE_PUBLISHABLE_KEY
@@ -30,25 +30,3 @@ services:
         value: "20971520"
       - key: MAX_AUDIO_SECONDS
         value: "120"
-
-  - type: worker
-    name: voicebridge-worker
-    runtime: docker
-    plan: 0.5c-512mb
-    region: frankfurt
-    dockerfilePath: ./Dockerfile
-    dockerCommand: npm run worker --workspace @voicebridge/api
-    autoDeploy: true
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: SUPABASE_URL
-        value: https://kggllnqkryquornprphu.supabase.co
-      - key: SUPABASE_SECRET_KEY
-        sync: false
-      - key: ELEVENLABS_API_KEY
-        sync: false
-      - key: SUPABASE_STORAGE_BUCKET
-        value: voicebridge-private
-      - key: FFMPEG_PATH
-        value: ffmpeg
