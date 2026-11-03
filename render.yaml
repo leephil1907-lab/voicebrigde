@@ -2,7 +2,7 @@ services:
   - type: web
     name: voicebridge
     runtime: docker
-    plan: free
+    plan: pro
     region: frankfurt
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
