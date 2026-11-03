@@ -52,6 +52,8 @@ Both WhatsApp paths are now represented in the implementation:
 
 See [the WhatsApp integration architecture](docs/architecture/whatsapp-integration.md) for provider setup and production acceptance tests. Personal sharing requires the Expo FileSystem and Sharing modules. Business sending requires an eligible Meta Business Platform account, server-side credentials, an authorized recipient, and audio-worker conversion to OGG/Opus.
 
+For step-by-step live setup, see [Connect social platforms to the VoiceBridge website](docs/CONNECT_SOCIAL_PLATFORMS.md). It covers Meta WhatsApp Cloud API, Telegram BotFather, Render environment variables, sender authorization, and Android personal-WhatsApp sharing.
+
 ## Durable jobs and authentication
 
 - Supabase Auth provides email/password accounts and persistent mobile sessions.
@@ -79,9 +81,9 @@ The repository includes a Render Blueprint in `render.yaml`. Create a Blueprint 
 
 Render Free services can spin down after inactivity. While the service is asleep, the worker is not processing jobs; queued jobs remain in Supabase and resume when the service starts again. This is suitable for a no-cost initial deployment, not continuous or time-sensitive processing. See [Render Free deployment notes](docs/RENDER_FREE_DEPLOYMENT.md).
 
-## Development status
+## Production status
 
-The repository now includes Supabase email/password sign-in, API bearer-token verification, per-user job ownership, a private audio bucket, a durable Postgres queue, and a separate restart-recoverable Dubbing v2 worker. These components require the migration to be applied to the intended Supabase project and the API/worker/mobile environment variables to be configured before live use. End-to-end provider and device testing is still required.
+The live Render deployment is connected to the VoiceBridge Supabase project. The web studio, API, private storage, durable queue and co-hosted worker are deployed. GitHub Actions verifies API/web tests, browser end-to-end tests, TypeScript checks, and the Docker build. Live authentication and a real ElevenLabs dubbing job still require an owner-controlled test account and provider credits. WhatsApp Business and Telegram are implemented as official server-side adapters but remain disabled until their credentials and approved sender user IDs are added in Render. See [the production setup guide](docs/CONNECT_SOCIAL_PLATFORMS.md), [Privacy Policy](/privacy.html), and [Terms of Service](/terms.html).
 
 ## Local development
 
