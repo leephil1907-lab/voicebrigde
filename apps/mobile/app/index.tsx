@@ -19,8 +19,6 @@ const languages = [
 export default function HomeScreen() {
   const [languageIndex, setLanguageIndex] = useState(0);
   const [recordingUri, setRecordingUri] = useState<string | null>(null);
-  const [voiceConsent, setVoiceConsent] = useState(false);
-  const [voiceId, setVoiceId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [translatedText, setTranslatedText] = useState("");
@@ -31,23 +29,6 @@ export default function HomeScreen() {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
   const selectedLanguage = languages[languageIndex];
-
-  async function createVoiceProfile() {
-    if (!recordingUri) return Alert.alert("Voice sample required", "Record a clear sample of your voice first.");
-    setBusy(true);
-    try {
-      const form = new FormData();
-      form.append("file", { uri: recordingUri, name: "voice-sample.m4a", type: "audio/m4a" } as any);
-      const response = await fetch(API_URL + "/v1/voice-profiles", { method: "POST", body: form });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Voice profile creation failed.");
-      setVoiceId(data.voiceId);
-      setRecordingUri(null);
-      Alert.alert("Voice profile created", "Your reference voice is enrolled. Now record a separate message to translate with this same voice.");
-    } catch (error) {
-      Alert.alert("Voice profile error", error instanceof Error ? error.message : "Check your API connection and provider key.");
-    } finally { setBusy(false); }
-  }
 
   async function translateRecording() {
     if (!recordingUri) return;
@@ -197,9 +178,9 @@ export default function HomeScreen() {
               <Text style={styles.previewButtonText}>▶  Play cloned-voice preview</Text>
             </Pressable>
             <Pressable onPress={shareToWhatsApp} disabled={!previewUrl || sharing} style={[styles.shareButton, (!previewUrl || sharing) && styles.translateDisabled]}>
-              <Text style={styles.shareButtonText}>{sharing ? "Preparing audio…" : "Share translated audio · WhatsApp / other apps"}</Text>
+              <Text style={styles.shareButtonText}>{sharing ? "Preparing audio…" : "Share translated voice message · WhatsApp / other apps"}</Text>
             </Pressable>
-            <Text style={styles.shareHint}>Personal WhatsApp uses Android sharing and may send an audio attachment. A native WhatsApp voice-note bubble is not guaranteed through the personal-account share interface.</Text>
+            <Text style={styles.shareHint}>Personal WhatsApp sharing may still appear as an audio attachment. Native voice-note bubbles are guaranteed only through supported WhatsApp voice-message APIs, such as WhatsApp Business Cloud API.</Text>
           </View> : null}
           <Text style={styles.disclaimer}>{translationStatus || "Dubbing v2 automatically matches the speaker from each recording. Preview links expire after 30 minutes in this build."}</Text>
         </View>
@@ -275,7 +256,10 @@ const styles = StyleSheet.create({
   resultCard: { marginTop: 15, padding: 14, borderRadius: 14, backgroundColor: "#111813", borderWidth: 1, borderColor: "#344036" },
   resultText: { color: "#E4EADF", fontSize: 12, lineHeight: 19, marginTop: 5, marginBottom: 12 },
   previewButton: { backgroundColor: "#D6F269", borderRadius: 11, padding: 13, alignItems: "center" },
-  previewButtonText: { color: "#172014", fontSize: 11, fontWeight: "900" },\n  shareButton: { backgroundColor: "#26382A", borderWidth: 1, borderColor: "#627B43", borderRadius: 11, padding: 13, alignItems: "center", marginTop: 9 },\n  shareButtonText: { color: "#D6F269", fontSize: 10, fontWeight: "900", textAlign: "center" },\n  shareHint: { color: "#849181", fontSize: 9, lineHeight: 14, marginTop: 8 },
+  previewButtonText: { color: "#172014", fontSize: 11, fontWeight: "900" },
+  shareButton: { backgroundColor: "#26382A", borderWidth: 1, borderColor: "#627B43", borderRadius: 11, padding: 13, alignItems: "center", marginTop: 9 },
+  shareButtonText: { color: "#D6F269", fontSize: 10, fontWeight: "900", textAlign: "center" },
+  shareHint: { color: "#849181", fontSize: 9, lineHeight: 14, marginTop: 8 },
   sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 29, marginBottom: 12 },
   sectionTitle: { color: "#F1F4ED", fontSize: 15, fontWeight: "800" },
   sectionMeta: { color: "#84917F", fontSize: 8, letterSpacing: 1, fontWeight: "700" },
