@@ -11,10 +11,32 @@ export function AuthDialog({ open, client, recovery, onClose, onRecoveryDone, on
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const actualMode = recovery ? "recovery" : mode;
   useEffect(() => { if (open) { setError(""); setNotice(""); setPassword(""); } }, [open, recovery]);
+
+  async function resendConfirmation() {
+    if (!client || resendBusy || !email.trim()) {
+      setError("Enter your account email address first.");
+      return;
+    }
+    setResendBusy(true); setError(""); setNotice("");
+    try {
+      const { error: cause } = await client.auth.resend({
+        type: "signup",
+        email: email.trim(),
+        options: { emailRedirectTo: window.location.origin },
+      });
+      if (cause) throw cause;
+      setNotice("If this account is awaiting confirmation, a fresh confirmation email has been requested. Check your inbox and spam folder.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "We couldn't resend the confirmation email. Please try again.");
+    } finally {
+      setResendBusy(false);
+    }
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -50,7 +72,12 @@ export function AuthDialog({ open, client, recovery, onClose, onRecoveryDone, on
     <form onSubmit={(event) => void submit(event)} className="auth-form">
       {actualMode !== "recovery" && <label className="field-label">Email address<div className="input-with-icon"><Mail size={17} /><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" autoComplete="email" required disabled={busy} /></div></label>}
       {actualMode !== "reset" && <label className="field-label">Password<div className="input-with-icon"><LockKeyhole size={17} /><input type={visible ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={actualMode === "signin" ? "Your password" : "At least 8 characters"} autoComplete={actualMode === "signin" ? "current-password" : "new-password"} minLength={actualMode === "signin" ? undefined : 8} required disabled={busy} /><button type="button" className="icon-button small" aria-label={visible ? "Hide password" : "Show password"} onClick={() => setVisible(!visible)}>{visible ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></label>}
-      {actualMode === "signin" && <button type="button" className="text-button forgot-button" onClick={() => { setMode("reset"); setError(""); setNotice(""); }}>Forgot password?</button>}
+      {actualMode === "signin" && <div className="auth-help-actions">
+        <button type="button" className="text-button forgot-button" onClick={() => { setMode("reset"); setError(""); setNotice(""); }}>Forgot password?</button>
+        <button type="button" className="text-button resend-button" onClick={() => void resendConfirmation()} disabled={resendBusy || busy || !client}>
+          {resendBusy ? <LoaderCircle size={14} className="spin" /> : null}{resendBusy ? "Sending…" : "Resend confirmation email"}
+        </button>
+      </div>}
       {error && <div className="inline-alert error" role="alert">{error}</div>}
       {notice && <div className="inline-alert success" role="status">{notice}</div>}
       <button className="button button-primary full-width" type="submit" disabled={busy || !client}>{busy ? <LoaderCircle size={17} className="spin" /> : null}{busy ? "One moment…" : { signin: "Sign in", signup: "Create account", reset: "Send reset link", recovery: "Update password" }[actualMode]}{!busy && <ArrowRight size={17} />}</button>
