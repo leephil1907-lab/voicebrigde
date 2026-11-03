@@ -10,9 +10,7 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { z } from "zod";
 import { understandAudio } from "./understand.js";
-import { normalizePhone, isAuthorizedSender, canonicalAudioMime, probeAudioDuration } from "./audio.js";
-import { sendWhatsAppBusinessVoiceMessage } from "./messaging/whatsapp-business.js";
-import { sendTelegramVoice } from "./messaging/telegram.js";
+import { canonicalAudioMime, probeAudioDuration } from "./audio.js";
 import { randomUUID } from "node:crypto";
 import { supabaseAdmin, supabasePublic, audioBucket, type AuthenticatedUser } from "./supabase.js";
 
@@ -135,19 +133,11 @@ app.get("/config", async (_request, reply) => {
     maxAudioSeconds: env.MAX_AUDIO_SECONDS,
     maxTranslationsPerDay: env.MAX_TRANSLATIONS_PER_USER_PER_DAY,
     targetLanguages: languages.map((language) => language.code),
-    channels: { whatsapp: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_GRAPH_API_VERSION), telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN) },
+    channels: { whatsapp: false, telegram: false },
   };
 });
 app.get("/v1/languages", async () => ({ items: languages }));
 
-// Per-account delivery readiness. Never expose the approved sender list itself.
-app.get("/v1/voice/delivery-capabilities", { preHandler: authenticate }, async (request) => ({
-  authorizedSender: isAuthorizedSender(request.user!.id),
-  channels: {
-    whatsapp: Boolean(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_GRAPH_API_VERSION),
-    telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN),
-  },
-}));
 
 const webDist = env.WEB_DIST_PATH || fileURLToPath(new URL("../../web/dist", import.meta.url));
 if (existsSync(resolve(webDist, "index.html"))) {
@@ -266,36 +256,6 @@ app.post("/v1/voice/understand", { preHandler: authenticate, config: { rateLimit
   } catch (error) { request.log.error({ error }, "Incoming audio reading failed"); return reply.code(502).send({ message: error instanceof Error ? error.message : "Could not read this voice note." }); }
 });
 
-// Server credentials are shared by this deployment, so sending is restricted to explicit owner IDs.
-app.post("/v1/voice/deliver", { preHandler: authenticate, config: { rateLimit: { max: 10, timeWindow: "15 minutes" } } }, async (request, reply) => {
-  if (!isAuthorizedSender(request.user!.id)) return reply.code(403).send({ message: "Native delivery is not enabled for this account. Ask the server owner to configure the approved sender list." });
-  const schema = z.object({ jobId: z.string().uuid(), idempotencyKey: z.string().uuid(), channel: z.enum(["whatsapp_business", "telegram"]), recipient: z.string().min(1).max(40), confirmed: z.literal(true), consent: z.literal(true) });
-  const parsed = schema.safeParse(request.body);
-  if (!parsed.success) return reply.code(400).send({ message: "Confirm the preview and recipient permission, then enter a valid recipient." });
-  const { jobId, idempotencyKey, channel } = parsed.data;
-  let recipient: string;
-  try { recipient = channel === "whatsapp_business" ? normalizePhone(parsed.data.recipient) : parsed.data.recipient.trim(); if (channel === "telegram" && !/^-?\d+$/.test(recipient)) throw new Error("Enter the Telegram chat ID of someone who has started your bot."); }
-  catch (error) { return reply.code(400).send({ message: (error as Error).message }); }
-  if (channel === "whatsapp_business" && !(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_GRAPH_API_VERSION)) return reply.code(503).send({ message: "WhatsApp Business Cloud API is not configured." });
-  if (channel === "telegram" && !process.env.TELEGRAM_BOT_TOKEN) return reply.code(503).send({ message: "Telegram bot is not configured." });
-  const { data: job } = await supabaseAdmin.from("voicebridge_jobs").select("id,status,output_path").eq("id", jobId).eq("user_id", request.user!.id).maybeSingle();
-  if (!job || job.status !== "completed" || !job.output_path) return reply.code(404).send({ message: "A completed voice note belonging to your account is required." });
-  const now = new Date().toISOString();
-  const { data: delivery, error: reservationError } = await supabaseAdmin.from("voicebridge_deliveries").insert({ user_id: request.user!.id, translation_job_id: jobId, channel, recipient, idempotency_key: idempotencyKey, status: "processing", recipient_consented_at: now, preview_confirmed_at: now, provider_attempted_at: now }).select("id").single();
-  if (reservationError || !delivery) return reply.code(409).send({ message: "This send request was already submitted or delivery storage is not ready. Check before sending again." });
-  try {
-    const { data: file, error } = await supabaseAdmin.storage.from(audioBucket).download(job.output_path);
-    if (error || !file) throw new Error("Could not retrieve the private translated audio.");
-    const audio = Buffer.from(await file.arrayBuffer());
-    const result = channel === "whatsapp_business" ? await sendWhatsAppBusinessVoiceMessage({ accessToken: process.env.WHATSAPP_ACCESS_TOKEN!, phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID!, graphApiVersion: process.env.WHATSAPP_GRAPH_API_VERSION!, recipient, audio, audioMimeType: "audio/ogg; codecs=opus" }) : await sendTelegramVoice({ chatId: recipient, audio });
-    await supabaseAdmin.from("voicebridge_deliveries").update({ status: "accepted", provider_message_id: result.messageId, updated_at: new Date().toISOString() }).eq("id", delivery.id);
-    return { status: "accepted", message: "The provider accepted your native voice message. Delivery is not yet confirmed." };
-  } catch (error) {
-    request.log.error({ error, deliveryId: delivery.id }, "Native voice send could not be confirmed");
-    await supabaseAdmin.from("voicebridge_deliveries").update({ status: "unknown", error: "Provider result not confirmed. Check with the recipient before trying again.", updated_at: new Date().toISOString() }).eq("id", delivery.id);
-    return reply.code(502).send({ message: "The send could not be confirmed. Check with the recipient before trying again to avoid duplicates." });
-  }
-});
 
 app.setNotFoundHandler((request, reply) => reply.code(404).send({ error: "NOT_FOUND", message: `Route ${request.method} ${request.url} was not found.` }));
 try { await app.listen({ host: env.HOST, port: env.PORT }); }

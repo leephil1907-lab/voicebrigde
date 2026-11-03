@@ -17,9 +17,9 @@ This guide covers the **existing single-service Blueprint**. It runs the website
 5. Save and deploy. Do not create a separate worker when using this combined launcher: it would duplicate processing capacity and incur additional charges. If you later scale to multiple web instances, each instance starts a worker; the database queue uses leases but costs and concurrent workload increase.
 6. Set Supabase Auth Site URL and Redirect URLs to the new HTTPS service origin. Include each approved custom domain if applicable. If the website runs on a custom domain or separate frontend, add its full origin to `CORS_ORIGIN` (comma-separated), and configure its Supabase redirects.
 
-## Optional platform connections
+## Manual sharing
 
-WhatsApp Business and Telegram are not connected automatically and are intentionally omitted from the initial Blueprint prompts. Add provider-specific values only in Render's Environment settings when ready: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_GRAPH_API_VERSION`, `TELEGRAM_BOT_TOKEN`, and `VOICEBRIDGE_ALLOWED_USER_IDS`. Consult `docs/CONNECT_SOCIAL_PLATFORMS.md` or the repository's messaging guide for exact onboarding. This is a shared deployment credential model restricted by the user UUID allowlist; it is not personal WhatsApp linking or per-user OAuth. Business messaging policy and recipient consent apply. See provider docs and test with controlled recipients.
+VoiceBridge does not send messages through server-side provider accounts. After previewing a translation, the user can open their device’s share sheet and choose the app and recipient. Audio file sharing must be supported by the browser and device; the receiving app decides whether it appears as an audio attachment rather than a native voice message. No messaging provider credentials or sender allowlist are required. The website does not fall back to downloading when direct sharing is unsupported.
 
 ## Verification after deployment
 

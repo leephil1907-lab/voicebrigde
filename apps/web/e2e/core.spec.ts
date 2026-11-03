@@ -194,3 +194,41 @@ test('workspace and footer use the full available width on mobile and desktop', 
     await page.close();
   }
 });
+
+test('theme toggle persists and navigation updates across desktop and mobile', async ({browser}) => {
+  for (const width of [320, 390, 1440]) {
+    const page = await browser.newPage({viewport:{width,height:850}, colorScheme:'light'});
+    await setup(page); await page.goto('/');
+    await expect(page.locator('.top-bar')).not.toContainText('Workspace');
+    await page.getByRole('button',{name:'Switch to dark theme'}).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
+    await page.reload(); await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
+    await expect(page.getByRole('button',{name:'Switch to light theme'})).toBeVisible();
+    const nav = width <= 800 ? page.getByRole('navigation',{name:'Mobile navigation'}) : page.getByRole('navigation',{name:'Main navigation'});
+    await nav.getByRole('button',{name:width <= 800 ? 'Read note' : 'Read a voice note'}).click();
+    await expect(page.getByRole('heading',{name:'Understand every message.'})).toBeVisible();
+    await expect(nav.getByRole('button',{name:width <= 800 ? 'Read note' : 'Read a voice note'})).toHaveAttribute('aria-current','page');
+    const dims = await page.evaluate(() => ({view:innerWidth,doc:document.documentElement.scrollWidth, headerRight:document.querySelector('.top-actions')!.getBoundingClientRect().right}));
+    expect(dims.doc).toBeLessThanOrEqual(width); expect(dims.headerRight).toBeLessThanOrEqual(width);
+    await page.getByRole('button',{name:'Switch to light theme'}).click(); await expect(page.locator('html')).toHaveAttribute('data-theme','light');
+    await page.close();
+  }
+});
+
+test('sharing opens the device chooser with audio and never calls the delivery API', async ({page}) => {
+  await setup(page);
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'canShare', {value: ({files}: {files: File[]}) => files.length === 1});
+    Object.defineProperty(navigator, 'share', {value: async ({files}: {files: File[]}) => { (window as unknown as {sharedName: string}).sharedName = files[0].name; }});
+  });
+  await page.route('**/v1/voice/deliver', () => { throw new Error('Automatic delivery must not be called'); });
+  await page.route('**/v1/voice/translate', route => route.fulfill({status:202,json:{id:jobId}}));
+  await page.route(`**/v1/voice/translations/${jobId}`, route => route.fulfill({json:{id:jobId,status:'completed',stage:'completed',targetLanguage:'fr',sourceLanguage:'en',audioUrl:'http://localhost:3000/fake.ogg',error:null,createdAt:new Date().toISOString()}}));
+  await page.route('**/fake.ogg', route => route.fulfill({status:200,contentType:'audio/ogg',body:'audio-test'}));
+  await page.goto('/'); await signIn(page); await page.getByRole('button',{name:'Start recording'}).click(); await page.waitForTimeout(1300); await page.getByRole('button',{name:'Stop recording'}).click();
+  await page.getByLabel('Translate into').selectOption('fr'); await page.getByLabel("I confirm this is my voice, or I have the speaker's permission to reproduce it.").check();
+  await page.getByRole('button',{name:'Translate voice note'}).click();
+  const share = page.getByRole('button',{name:'Share with an app'}).first(); await expect(share).toBeEnabled({timeout:15000}); await share.click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as {sharedName?: string}).sharedName)).toBe('voicebridge-fr.ogg');
+  await expect(page.getByText('No message is sent automatically.',{exact:false})).toBeVisible();
+});
