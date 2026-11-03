@@ -141,3 +141,15 @@ test('responsive layouts fit compact phones, tablets and desktop widths', async 
   }
   await context.close();
 });
+
+
+test('mobile layout remains within narrow 320px devices', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 320, height: 740 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  await setup(page);
+  await page.goto('/');
+  await expect(page.getByRole('navigation', { name: 'Mobile navigation' })).toBeVisible();
+  const widths = await page.evaluate(() => ({ viewport: window.innerWidth, document: document.documentElement.scrollWidth }));
+  expect(widths.document).toBeLessThanOrEqual(widths.viewport);
+  await context.close();
+});
