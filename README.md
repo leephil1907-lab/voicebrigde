@@ -7,7 +7,7 @@ VoiceBridge AI is an Android-first multilingual voice messaging application. Use
 ## Product principles
 
 - Preserve the speaker's recognizable voice where the selected voice provider and target language support it.
-- Always show the translated text and provide an audio preview before sending.
+- Show the provider's source and translated transcripts when available, and provide an audio preview before sending.
 - Send native voice messages only through documented, supported platform APIs.
 - Keep personal WhatsApp and WhatsApp Business delivery paths distinct.
 - Never automate or scrape personal messaging accounts through unofficial interfaces.
@@ -39,9 +39,9 @@ The primary voice engine now uses asynchronous ElevenLabs Dubbing v2 rather than
 3. Create an ElevenLabs Dubbing v2 project and queue the target language with cloning strength 8/10.
 4. Poll the asynchronous job until dubbing completes; the model uses the speaker in the source recording as the voice reference and aims to preserve identity, emotion, timing and tone.
 5. Convert the WAV result to mono OGG/Opus with FFmpeg for WhatsApp-compatible voice-note delivery.
-6. Preview the translated audio before choosing a delivery channel.
+6. Retrieve the source and translated segment transcripts when available.\n7. Preview the translated audio before choosing a delivery channel.
 
-Configure `ELEVENLABS_API_KEY` and ensure FFmpeg is installed (the API Dockerfile installs it). Dubbing v2 supports 90+ languages and is designed to preserve speaker identity, emotional tone and timing, but results still require listening tests; cloning strength 8 favors resemblance and may affect naturalness across very different languages. See [the voice engine guide](docs/architecture/voice-engine.md). Jobs and preview buffers are currently held in process memory; a durable queue, object storage and authenticated accounts remain required before production.
+Configure `ELEVENLABS_API_KEY` and ensure FFmpeg is installed (the API Dockerfile installs it). Dubbing v2 supports 90+ languages and is designed to preserve speaker identity, emotional tone and timing, but results still require listening tests; cloning strength 8 favors resemblance and may affect naturalness across very different languages. See [the voice engine guide](docs/architecture/voice-engine.md). Jobs and preview audio are currently held in process memory and expire after 30 minutes; a durable queue, object storage and authenticated accounts remain required before production. The translation endpoint is limited to five starts per IP per 15 minutes as a temporary abuse-control measure, not a replacement for account authentication.
 
 ## WhatsApp-first delivery
 
@@ -64,11 +64,11 @@ See [the WhatsApp integration architecture](docs/architecture/whatsapp-integrati
 
 ## Development status
 
-The mobile recorder, asynchronous ElevenLabs Dubbing v2 job flow, OGG/Opus conversion, audio preview, and initial WhatsApp delivery adapters are implemented in the repository. Live use requires provider credentials and end-to-end testing. Production storage, account authentication, editing controls, and messaging delivery integrations remain outstanding.
+The mobile recorder, asynchronous ElevenLabs Dubbing v2 job flow, source/translated transcript retrieval, OGG/Opus conversion, audio preview, and initial WhatsApp delivery adapters are implemented in the repository. Live use requires provider credentials and end-to-end testing. Set `EXPO_PUBLIC_API_URL` in `apps/mobile/.env` to the deployed API URL or your development computer's LAN IP; `localhost` on a physical Android phone points to the phone itself. Production storage, account authentication, editing controls, and messaging delivery integrations remain outstanding.
 
 ## Local development
 
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup instructions and [docs/architecture/overview.md](docs/architecture/overview.md) for system design.
+Copy `apps/mobile/.env.example` to `apps/mobile/.env` and set the API URL before launching Expo. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for setup instructions and [docs/architecture/overview.md](docs/architecture/overview.md) for system design.
 
 ## Security
 
