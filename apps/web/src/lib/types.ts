@@ -60,3 +60,8 @@ export interface AudioClip {
 }
 
 export type ConnectionStatus = "checking" | "ready" | "setup" | "offline";
+
+export interface DeliveryCapabilities {
+  authorizedSender: boolean;
+  channels: { whatsapp: boolean; telegram: boolean };
+}
