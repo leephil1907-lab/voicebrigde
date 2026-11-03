@@ -114,6 +114,10 @@ export default function HomeScreen() {
 
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       setRecordingUri(null);
+      setPreviewUrl(null);
+      setSourceTranscript("");
+      setTranslatedTranscript("");
+      setTranslationStatus("");
       await recorder.prepareToRecordAsync();
       recorder.record();
     } catch (error) {
@@ -167,7 +171,7 @@ export default function HomeScreen() {
           <Text style={styles.sectionLabel}>TRANSLATE INTO</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.languageList}>
             {languages.map((language, index) => (
-              <Pressable key={language.code} onPress={() => setLanguageIndex(index)} style={[styles.languageChip, languageIndex === index && styles.languageChipActive]}>
+              <Pressable key={language.code} onPress={() => { setLanguageIndex(index); setPreviewUrl(null); setSourceTranscript(""); setTranslatedTranscript(""); setTranslationStatus(""); }} style={[styles.languageChip, languageIndex === index && styles.languageChipActive]}>
                 <Text style={[styles.languageName, languageIndex === index && styles.languageNameActive]}>{language.label}</Text>
                 <Text style={[styles.languageNative, languageIndex === index && styles.languageNameActive]}>{language.native}</Text>
               </Pressable>
