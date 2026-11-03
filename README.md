@@ -36,10 +36,11 @@ The primary voice engine now uses asynchronous ElevenLabs Dubbing v2 rather than
 
 1. Record a message on Android.
 2. Upload the recording to the Fastify API; source-language detection is automatic unless a source language is explicitly supplied.
-3. Create an ElevenLabs Dubbing v2 project and queue the target language with cloning strength 8/10.
+3. Create an ElevenLabs Dubbing v2 project, wait for source preparation, then queue the target language with cloning strength 8/10.
 4. Poll the asynchronous job until dubbing completes; the model uses the speaker in the source recording as the voice reference and aims to preserve identity, emotion, timing and tone.
 5. Convert the WAV result to mono OGG/Opus with FFmpeg for WhatsApp-compatible voice-note delivery.
-6. Retrieve the source and translated segment transcripts when available.\n7. Preview the translated audio before choosing a delivery channel.
+6. Retrieve the source and translated segment transcripts when available.
+7. Preview the translated audio before choosing a delivery channel.
 
 Configure `ELEVENLABS_API_KEY` and ensure FFmpeg is installed (the API Dockerfile installs it). Dubbing v2 supports 90+ languages and is designed to preserve speaker identity, emotional tone and timing, but results still require listening tests; cloning strength 8 favors resemblance and may affect naturalness across very different languages. See [the voice engine guide](docs/architecture/voice-engine.md). Jobs and preview audio are currently held in process memory and expire after 30 minutes; a durable queue, object storage and authenticated accounts remain required before production. The translation endpoint is limited to five starts per IP per 15 minutes as a temporary abuse-control measure, not a replacement for account authentication.
 
