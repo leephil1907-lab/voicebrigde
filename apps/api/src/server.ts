@@ -17,6 +17,10 @@ const envSchema = z.object({
   OPENAI_TRANSLATION_MODEL: z.string().default("gpt-4o-mini"),
   ELEVENLABS_API_KEY: z.string().optional(),
   ELEVENLABS_MODEL_ID: z.string().default("eleven_multilingual_v2"),
+  ELEVENLABS_STABILITY: z.coerce.number().min(0).max(1).default(0.55),
+  ELEVENLABS_SIMILARITY_BOOST: z.coerce.number().min(0).max(1).default(0.9),
+  ELEVENLABS_STYLE: z.coerce.number().min(0).max(1).default(0),
+  ELEVENLABS_SPEAKER_BOOST: z.enum(["true", "false"]).default("true").transform((value) => value === "true"),
   MAX_AUDIO_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
 });
 const env = envSchema.parse(process.env);
@@ -133,7 +137,14 @@ async function elevenLabsSpeak(text: string, voiceId: string) {
     body: JSON.stringify({
       text,
       model_id: env.ELEVENLABS_MODEL_ID,
-      voice_settings: { stability: 0.48, similarity_boost: 0.78, style: 0.15, use_speaker_boost: true },
+      // Favor the enrolled speaker identity. Keep style exaggeration at zero so
+      // the model does not impose a new performance style over the reference voice.
+      voice_settings: {
+        stability: env.ELEVENLABS_STABILITY,
+        similarity_boost: env.ELEVENLABS_SIMILARITY_BOOST,
+        style: env.ELEVENLABS_STYLE,
+        use_speaker_boost: env.ELEVENLABS_SPEAKER_BOOST,
+      },
     }),
   });
   if (!response.ok) {
