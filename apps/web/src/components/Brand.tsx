@@ -31,18 +31,17 @@ export function SpanishFlag() {
 }
 
 export function SoundGlobe({ language = "ES" }: { language?: string }) {
+  const bars = [18, 26, 16, 36, 53, 32, 65, 43, 74, 52, 62, 37, 50, 30, 42, 20, 29];
   return <div className="sound-globe" aria-hidden="true">
-    <svg viewBox="0 0 260 180" fill="none">
-      <circle cx="135" cy="87" r="68" fill="#edf1e5" />
-      <g stroke="#a8b798" strokeWidth="1"><circle cx="135" cy="87" r="57" /><ellipse cx="135" cy="87" rx="28" ry="57" /><ellipse cx="135" cy="87" rx="57" ry="22" /><path d="M78 87h114M135 30v114" /></g>
-      <circle className="sound-globe-orbit" cx="135" cy="87" r="78" stroke="#cad4bd" strokeDasharray="3 6" />
-      <rect className="sound-globe-core" x="103" y="61" width="65" height="51" rx="19" fill="#193b32" />
-      <path d="M119 108l-3 13 17-11" fill="#193b32" />
-      <g stroke="#d5ef8b" strokeWidth="3.4" strokeLinecap="round"><path d="M118 82v9M127 75v23M136 70v33M145 78v17M154 83v7" /></g>
-      <rect x="174" y="111" width="48" height="33" rx="11" fill="#d5ef8b" stroke="#f7f8f4" strokeWidth="4" />
-      <text x="198" y="133" textAnchor="middle" fill="#193b32" fontSize="12" fontWeight="800" fontFamily="Manrope Variable, sans-serif">{language.slice(0, 3)}</text>
-      <circle cx="69" cy="57" r="7" fill="#d5ef8b" stroke="#f7f8f4" strokeWidth="4" /><circle cx="195" cy="44" r="4" fill="#7c9574" />
-      <path d="M43 115l4-7 4 7-4 7zM215 80v10M210 85h10" stroke="#9eaf8d" strokeWidth="1.5" />
+    <svg viewBox="0 0 280 180" fill="none">
+      <rect x="31" y="16" width="218" height="147" rx="25" fill="#f4f3f0" stroke="#e4e3de" />
+      <rect x="44" y="29" width="192" height="122" rx="17" fill="#fff" stroke="#ebeae5" />
+      <circle cx="59" cy="44" r="3" fill="#b7b8af"/><circle cx="70" cy="44" r="3" fill="#d6d8d0"/><circle cx="81" cy="44" r="3" fill="#d6d8d0"/>
+      <g fill="#252722">{bars.map((height, index) => <rect key={index} x={59 + index * 9.3} y={100 - height / 2} width="4" height={height} rx="2" opacity={index < 8 ? '.34' : '.85'} />)}</g>
+      <rect x="184" y="130" width="55" height="33" rx="11" fill="#252722" />
+      <text x="211.5" y="151" textAnchor="middle" fill="#fff" fontSize="11" fontWeight="800" fontFamily="Manrope Variable, sans-serif">{language.slice(0,3)}</text>
+      <circle cx="41" cy="133" r="16" fill="#e8f0e4" stroke="#fff" strokeWidth="4" />
+      <path d="M35 133h12M38 129v8M42 127v12M46 130v6" stroke="#456958" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   </div>;
 }
