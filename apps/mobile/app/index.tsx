@@ -92,11 +92,11 @@ export default function HomeScreen() {
     setSharing(true);
     try {
       if (!(await Sharing.isAvailableAsync())) throw new Error("The Android share sheet is not available on this device.");
-      const source = new File(Paths.cache, `voicebridge-${Date.now()}.mp3`);
+      const source = new File(Paths.cache, `voicebridge-${Date.now()}.ogg`);
       const localAudio = await File.downloadFileAsync(previewUrl, source);
       await Sharing.shareAsync(localAudio.uri, {
         dialogTitle: "Send translated voice message",
-        mimeType: "audio/wav",
+        mimeType: "audio/ogg",
       });
     } catch (error) {
       Alert.alert("WhatsApp sharing", error instanceof Error ? error.message : "Could not prepare the translated audio for sharing.");
