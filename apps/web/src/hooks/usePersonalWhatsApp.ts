@@ -5,7 +5,7 @@ type Status = 'unavailable'|'disconnected'|'connecting'|'awaiting_confirmation'|
 export function usePersonalWhatsApp(userId:string | undefined, getToken:()=>Promise<string>) {
   const [status,setStatus]=useState<Status>('unavailable'); const [code,setCode]=useState(''); const [error,setError]=useState('');
   const [busy,setBusy]=useState(false); const codeRequested=useRef(false); const generation=useRef(0);
-  const call=useCallback(async <T,>(path:string,body?:unknown) => apiRequest<T>(`/v1/personal-whatsapp/${path}`,body === undefined ? {} : {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)},await getToken()),[getToken]);
+  const call=useCallback(async <T,>(path:string,body?:unknown) => apiRequest<T>(`/v1/personal-whatsapp/${path}`,body === undefined ? {} : {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),...(path==='send' ? {signal:AbortSignal.timeout(120_000)} : {})},await getToken()),[getToken]);
   const refresh=useCallback(async () => {
     if(!userId) return;
     const current=generation.current;

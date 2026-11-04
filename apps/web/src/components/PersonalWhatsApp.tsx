@@ -19,14 +19,14 @@ export function PersonalWhatsAppConnection({wa}:{wa:Personal}) {
   </section>;
 }
 export function PersonalWhatsAppSend({wa,jobId}:{wa:Personal;jobId:string}) {
-  const [recipient,setRecipient]=useState(''); const [preview,setPreview]=useState(false);const [consent,setConsent]=useState(false);const [busy,setBusy]=useState(false);const [result,setResult]=useState('');
+  const [recipient,setRecipient]=useState(''); const [preview,setPreview]=useState(false);const [consent,setConsent]=useState(false);const [busy,setBusy]=useState(false);const [result,setResult]=useState('');const [needsCheck,setNeedsCheck]=useState(false);const [checkedChat,setCheckedChat]=useState(false);
   if(wa.status!=='connected') return null;
   const submit=async () => {
-    if(!preview || !consent || busy) return;
-    setBusy(true);setResult('');
-    try { const response=await wa.send(jobId,recipient,crypto.randomUUID());setResult(response.status==='accepted' ? 'WhatsApp accepted the voice note. Check the chat for its delivery status.' : 'Send status is unknown. Check WhatsApp before trying again to avoid a duplicate.'); }
-    catch {setResult('Send status could not be confirmed. Check WhatsApp before trying again to avoid a duplicate.');}
+    if(!preview || !consent || busy || (needsCheck && !checkedChat)) return;
+    setBusy(true);setResult('');setNeedsCheck(false);setCheckedChat(false);
+    try { const response=await wa.send(jobId,recipient,crypto.randomUUID());setResult(response.status==='accepted' ? 'WhatsApp accepted the voice note. Check the chat for its delivery status.' : 'Send status is unknown. Check WhatsApp before trying again to avoid a duplicate.'); if(response.status==='unknown')setNeedsCheck(true); }
+    catch {setResult('Send status could not be confirmed. Check WhatsApp before trying again to avoid a duplicate.');setNeedsCheck(true);}
     finally {setBusy(false);}
   };
-  return <section className="personal-send" aria-labelledby="wa-send-title"><h3 id="wa-send-title">Send through linked WhatsApp</h3><p>Enter the recipient’s number with country code. Review the audio before sending.</p><label className="wa-label">Recipient phone number<input type="tel" autoComplete="tel" value={recipient} onChange={e=>setRecipient(e.target.value)} placeholder="+234…"/></label><label className="wa-check"><input type="checkbox" checked={preview} onChange={e=>setPreview(e.target.checked)}/> I listened to this translation.</label><label className="wa-check"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/> The recipient agreed to receive this message.</label><button className="button-primary" disabled={busy||!recipient||!preview||!consent} onClick={()=>void submit()}><Send size={15}/>{busy?'Sending…':'Confirm and send'}</button>{result&&<p role="status" className="settings-explain">{result}</p>}</section>;
+  return <section className="personal-send" aria-labelledby="wa-send-title"><h3 id="wa-send-title">Send through linked WhatsApp</h3><p>Enter the recipient’s number with country code. Review the audio before sending.</p><label className="wa-label">Recipient phone number<input type="tel" autoComplete="tel" value={recipient} onChange={e=>setRecipient(e.target.value)} placeholder="+234…"/></label><label className="wa-check"><input type="checkbox" checked={preview} onChange={e=>setPreview(e.target.checked)}/> I listened to this translation.</label><label className="wa-check"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/> The recipient agreed to receive this message.</label>{needsCheck && <label className="wa-check"><input type="checkbox" checked={checkedChat} onChange={e=>setCheckedChat(e.target.checked)}/> I checked WhatsApp and understand that sending again may create a duplicate.</label>}<button className="button-primary" disabled={busy||!recipient||!preview||!consent||(needsCheck&&!checkedChat)} onClick={()=>void submit()}><Send size={15}/>{busy?'Sending…':'Confirm and send'}</button>{result&&<p role="status" className="settings-explain">{result}</p>}</section>;
 }

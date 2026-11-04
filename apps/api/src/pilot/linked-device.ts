@@ -1,4 +1,4 @@
-import makeWASocket, { Browsers, prepareWAMessageMedia, generateWAMessageFromContent, type AuthenticationState } from '@whiskeysockets/baileys';
+import makeWASocket, { Browsers, prepareWAMessageMedia, generateWAMessageFromContent, type AuthenticationState, type WAMediaUploadFunction } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import { normalizePhone } from '../audio.js';
 import { authorizePilot, type PilotPolicy } from './personal-whatsapp-policy.js';
@@ -16,6 +16,14 @@ export interface PairingSocket {
 }
 export type SocketFactory = (state: AuthenticationState) => PairingSocket;
 
+/** Prepare the actual Baileys protobuf using explicit waveform metadata. */
+export async function preparePersonalVoice(audio:Buffer,waveform:Uint8Array,seconds:number,upload:WAMediaUploadFunction) {
+  const payload = {audio, mimetype:'audio/ogg; codecs=opus', ptt:true, waveform, seconds};
+  const media = await prepareWAMessageMedia(payload, {upload});
+  if (!media.audioMessage) throw new Error('Could not prepare voice note.');
+  return {...media, audioMessage:{...media.audioMessage, ptt:true, waveform, seconds, mimetype:'audio/ogg; codecs=opus'}};
+}
+
 /** Unofficial transport; this never logs or exposes QR payloads, codes, or session keys. */
 export const makeLinkedSocket: SocketFactory = state => {
   const socket = makeWASocket({ auth: state, logger: pino({level:'silent'}), browser: Browsers.ubuntu('Chrome'), syncFullHistory: false, shouldSyncHistoryMessage: () => false, markOnlineOnConnect: false });
@@ -25,9 +33,7 @@ export const makeLinkedSocket: SocketFactory = state => {
     requestPairingCode: phone => socket.requestPairingCode(phone),
     sendVoice: async (jid, audio, waveform, seconds) => {
       if (!socket.user?.id) throw new Error('WhatsApp is not connected.');
-      const media = await prepareWAMessageMedia({audio, mimetype:'audio/ogg; codecs=opus', ptt:true}, {upload:socket.waUploadToServer});
-      if (!media.audioMessage) throw new Error('Could not prepare voice note.');
-      const content = {...media, audioMessage:{...media.audioMessage, ptt:true, waveform, seconds, mimetype:'audio/ogg; codecs=opus'}};
+      const content = await preparePersonalVoice(audio,waveform,seconds,socket.waUploadToServer);
       const message = generateWAMessageFromContent(jid,content,{userJid:socket.user.id});
       if (!message.message || !message.key.id) throw new Error('Could not create voice note.');
       await socket.relayMessage(jid,message.message,{messageId:message.key.id});
@@ -38,7 +44,7 @@ export const makeLinkedSocket: SocketFactory = state => {
   };
 };
 
-/** Owner-only coordinator. No HTTP endpoint or frontend calls this class yet.
+/** Owner-only coordinator behind the disabled-by-default API feature flag.
  * It never auto-retries message sends; it handles one pairing restart request. */
 export class LinkedDevicePairing {
   private phase: Phase = 'disconnected';

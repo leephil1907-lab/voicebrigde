@@ -283,7 +283,7 @@ test('owner can review risk, pair and confirm one direct voice send', async ({pa
     if(path==='status') return route.fulfill({json:{status:phase}});
     if(path==='connect') { phase='awaiting_confirmation'; return route.fulfill({status:202,json:{status:phase}}); }
     if(path==='pairing-code') {pairingRead++; return route.fulfill({json:{code:'ABCD1234'}});}
-    if(path==='send') {const data=route.request().postDataJSON(); expect(data.previewConfirmed).toBe(true); expect(data.recipientConsented).toBe(true); expect(data.recipient).toBe('+2348001234567'); sendCount++; return route.fulfill({json:{status:'accepted',messageId:'test'}});}
+    if(path==='send') {const data=route.request().postDataJSON(); expect(data.previewConfirmed).toBe(true); expect(data.recipientConsented).toBe(true); expect(data.recipient).toBe('+2348001234567'); sendCount++; return route.fulfill({json:sendCount===1?{status:'unknown'}:{status:'accepted',messageId:'test'}});}
     if(path==='disconnect') {phase='disconnected';return route.fulfill({json:{status:phase}});}
     return route.fulfill({status:404});
   });
@@ -304,7 +304,11 @@ test('owner can review risk, pair and confirm one direct voice send', async ({pa
   await expect(page.getByRole('heading',{name:'Send through linked WhatsApp'})).toBeVisible({timeout:15000});
   await page.getByLabel('Recipient phone number').fill('+2348001234567');await expect(page.getByRole('button',{name:'Confirm and send'})).toBeDisabled();
   await page.getByLabel('I listened to this translation.').check();await page.getByLabel('The recipient agreed to receive this message.').check();await page.getByRole('button',{name:'Confirm and send'}).click();
-  await expect(page.getByText('WhatsApp accepted the voice note.',{exact:false})).toBeVisible();expect(sendCount).toBe(1);
+  await expect(page.getByText('Send status is unknown.',{exact:false})).toBeVisible(); expect(sendCount).toBe(1);
+  await expect(page.getByRole('button',{name:'Confirm and send'})).toBeDisabled();
+  await page.getByLabel('I checked WhatsApp and understand that sending again may create a duplicate.').check();
+  await page.getByRole('button',{name:'Confirm and send'}).click();
+  await expect(page.getByText('WhatsApp accepted the voice note.',{exact:false})).toBeVisible();expect(sendCount).toBe(2);
 });
 
 test('mobile account tab opens profile and signed-in user can sign out', async ({browser}) => {
