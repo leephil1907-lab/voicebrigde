@@ -28,3 +28,11 @@ test('fails closed on wrong key, modified ciphertext or cross-owner record repla
   await assert.rejects(vault.load());
   assert.throws(() => new EncryptedAuthStore(store,'owner','invalid'), /32-byte/);
 });
+
+test('a disconnected session cannot resurrect credentials', async () => {
+  const store = new MemoryStore(); const vault = new EncryptedAuthStore(store,'owner',randomBytes(32).toString('base64'));
+  const old=await vault.load(); await old.saveCreds(); await vault.clear();
+  await assert.rejects(old.saveCreds(),/disconnected/);
+  await assert.rejects(old.state.keys.set({session:{x:Buffer.from('bad')}}),/disconnected/);
+  assert.equal(store.rows.size,0);
+});

@@ -32,3 +32,19 @@ begin
 end $$;
 revoke all on function public.voicebridge_whatsapp_session_write(uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.voicebridge_whatsapp_session_write(uuid, jsonb) to service_role;
+
+-- Durable idempotency: an attempt is reserved before upload or relay. A pending
+-- attempt is never automatically replayed, including after a server restart.
+create table if not exists public.voicebridge_whatsapp_send_attempts (
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  attempt_id uuid not null,
+  job_id uuid not null,
+  recipient_hash text not null,
+  state text not null check (state in ('reserved','accepted','unknown')),
+  message_id text,
+  created_at timestamptz not null default now(),
+  primary key (owner_id, attempt_id)
+);
+alter table public.voicebridge_whatsapp_send_attempts enable row level security;
+revoke all on table public.voicebridge_whatsapp_send_attempts from public, anon, authenticated;
+grant select,insert,update on table public.voicebridge_whatsapp_send_attempts to service_role;

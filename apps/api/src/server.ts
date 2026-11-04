@@ -14,6 +14,7 @@ import { EncryptedAuthStore } from "./pilot/encrypted-auth-store.js";
 import { SupabaseAuthRecordStore } from "./pilot/supabase-auth-record-store.js";
 import { LinkedDevicePairing } from "./pilot/linked-device.js";
 import { registerPairingRoutes } from "./pilot/pairing-routes.js";
+import { SupabaseSendStore } from "./pilot/supabase-send-store.js";
 import { canonicalAudioMime, probeAudioDuration } from "./audio.js";
 import { randomUUID } from "node:crypto";
 import { supabaseAdmin, supabasePublic, audioBucket, type AuthenticatedUser } from "./supabase.js";
@@ -35,6 +36,7 @@ const env = z.object({
   WEB_DIST_PATH: z.string().optional(),
   PERSONAL_WHATSAPP_PILOT_ENABLED: z.enum(["true", "false"]).default("false"),
   PERSONAL_WHATSAPP_OWNER_ID: z.string().uuid().optional(),
+  PERSONAL_WHATSAPP_SINGLE_INSTANCE: z.enum(["true", "false"]).default("false"),
   PERSONAL_WHATSAPP_SESSION_KEY: z.string().optional(),
 }).parse(process.env);
 if (!supabasePublic) throw new Error("Set SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY for API token verification.");
@@ -100,10 +102,10 @@ async function authenticate(request: FastifyRequest, reply: FastifyReply) {
 // Feature is deliberately disabled by default; requires a migrated database,
 // operator-managed key, a single server instance and owner-only real-device testing.
 if (env.PERSONAL_WHATSAPP_PILOT_ENABLED === "true") {
-  if (!env.PERSONAL_WHATSAPP_OWNER_ID || !env.PERSONAL_WHATSAPP_SESSION_KEY) throw new Error("Personal WhatsApp requires owner and session-key configuration.");
+  if (!env.PERSONAL_WHATSAPP_OWNER_ID || !env.PERSONAL_WHATSAPP_SESSION_KEY || env.PERSONAL_WHATSAPP_SINGLE_INSTANCE !== "true") throw new Error("Personal WhatsApp requires owner, session key and single-instance acknowledgment.");
   const policy = { enabled: true, ownerUserId: env.PERSONAL_WHATSAPP_OWNER_ID };
   const vault = new EncryptedAuthStore(new SupabaseAuthRecordStore(supabaseAdmin), policy.ownerUserId, env.PERSONAL_WHATSAPP_SESSION_KEY);
-  registerPairingRoutes(app, {policy, pairing:new LinkedDevicePairing(policy,vault), authenticate});
+  registerPairingRoutes(app, {policy, pairing:new LinkedDevicePairing(policy,vault), store:new SupabaseSendStore(supabaseAdmin,audioBucket), fingerprintKey:Buffer.from(env.PERSONAL_WHATSAPP_SESSION_KEY,"base64"), authenticate});
 }
 
 async function readUpload(part: MultipartFile) {

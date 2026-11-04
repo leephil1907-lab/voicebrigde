@@ -8,7 +8,7 @@ test('pairing endpoints require sign-in and owner, never expose codes to another
   const app=Fastify(); app.decorateRequest('user',null); let starts=0, codeReads=0;
   const pairing={status:()=> 'connecting', connect:async()=>{starts++;}, takePairingCode:()=>{codeReads++;return 'ABCD1234';},disconnect:async()=>{}} as unknown as LinkedDevicePairing;
   const authenticate=async (req:FastifyRequest, reply:FastifyReply) => { const id=req.headers['x-test-user']; if (!id) return reply.code(401).send({message:'Sign in'}); (req as FastifyRequest & {user:{id:string}}).user={id:String(id)}; };
-  registerPairingRoutes(app,{policy:{enabled:true,ownerUserId:'owner'},pairing,authenticate});
+  registerPairingRoutes(app,{policy:{enabled:true,ownerUserId:'owner'},pairing,store:{} as never,fingerprintKey:Buffer.alloc(32),authenticate});
   assert.equal((await app.inject({method:'GET',url:'/v1/personal-whatsapp/status'})).statusCode,401);
   assert.equal((await app.inject({method:'POST',url:'/v1/personal-whatsapp/pairing-code',headers:{'x-test-user':'other'}})).statusCode,404); assert.equal(codeReads,0);
   assert.equal((await app.inject({method:'POST',url:'/v1/personal-whatsapp/connect',headers:{'x-test-user':'owner'},payload:{phone:'x'}})).statusCode,400); assert.equal(starts,0);

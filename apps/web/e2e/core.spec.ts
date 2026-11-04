@@ -276,6 +276,37 @@ test('connections shows truthful sharing options and returns to the studio', asy
   await expect(page.getByRole('heading',{name:'Your voice note',exact:true})).toBeVisible();
 });
 
+test('owner can review risk, pair and confirm one direct voice send', async ({page}) => {
+  await setup(page); let phase='disconnected'; let sendCount=0; let pairingRead=0;
+  await page.route('**/v1/personal-whatsapp/**',async route=>{
+    const path=new URL(route.request().url()).pathname.split('/').pop();
+    if(path==='status') return route.fulfill({json:{status:phase}});
+    if(path==='connect') { phase='awaiting_confirmation'; return route.fulfill({status:202,json:{status:phase}}); }
+    if(path==='pairing-code') {pairingRead++; return route.fulfill({json:{code:'ABCD1234'}});}
+    if(path==='send') {const data=route.request().postDataJSON(); expect(data.previewConfirmed).toBe(true); expect(data.recipientConsented).toBe(true); expect(data.recipient).toBe('+2348001234567'); sendCount++; return route.fulfill({json:{status:'accepted',messageId:'test'}});}
+    if(path==='disconnect') {phase='disconnected';return route.fulfill({json:{status:phase}});}
+    return route.fulfill({status:404});
+  });
+  await page.route('**/v1/voice/translate',route=>route.fulfill({status:202,json:{id:jobId}}));
+  await page.route(`**/v1/voice/translations/${jobId}`,route=>route.fulfill({json:{id:jobId,status:'completed',stage:'completed',targetLanguage:'fr',sourceLanguage:'en',audioUrl:'http://localhost:3000/fake.ogg',error:null,createdAt:new Date().toISOString()}}));
+  const header=Buffer.alloc(47);header.write('OggS',0);header[5]=2;header[26]=1;header[27]=19;header.write('OpusHead',28);header[36]=1;header[37]=1;
+  await page.route('**/fake.ogg',route=>route.fulfill({status:200,body:header}));
+  await page.goto('/');await signIn(page);await page.getByRole('navigation',{name:'Main navigation'}).getByRole('button',{name:'Connections'}).click();
+  await expect(page.getByRole('heading',{name:'Personal WhatsApp connection'})).toBeVisible();
+  await page.getByLabel('Your WhatsApp number, including country code').fill('+2348001234567');
+  await expect(page.getByRole('button',{name:'Link WhatsApp'})).toBeDisabled();
+  await page.getByLabel('I understand the risk and want to link my account.').check(); await page.getByRole('button',{name:'Link WhatsApp'}).click();
+  await expect(page.getByText('ABCD1234')).toBeVisible(); expect(pairingRead).toBe(1);
+  phase='connected'; await expect(page.getByText('Connected. Select a completed note to send it.')).toBeVisible({timeout:8000});
+  await page.getByRole('button',{name:'Go to voice studio'}).click();
+  await page.getByRole('button',{name:'Start recording'}).click();await page.waitForTimeout(1300);await page.getByRole('button',{name:'Stop recording'}).click();
+  await page.getByLabel('Translate into').selectOption('fr');await page.getByLabel("I confirm this is my voice, or I have the speaker's permission to reproduce it.").check();await page.getByRole('button',{name:'Translate voice note'}).click();
+  await expect(page.getByRole('heading',{name:'Send through linked WhatsApp'})).toBeVisible({timeout:15000});
+  await page.getByLabel('Recipient phone number').fill('+2348001234567');await expect(page.getByRole('button',{name:'Confirm and send'})).toBeDisabled();
+  await page.getByLabel('I listened to this translation.').check();await page.getByLabel('The recipient agreed to receive this message.').check();await page.getByRole('button',{name:'Confirm and send'}).click();
+  await expect(page.getByText('WhatsApp accepted the voice note.',{exact:false})).toBeVisible();expect(sendCount).toBe(1);
+});
+
 test('mobile account tab opens profile and signed-in user can sign out', async ({browser}) => {
   const page = await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   await setup(page); await page.goto('/'); await signIn(page);

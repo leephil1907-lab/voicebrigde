@@ -15,6 +15,7 @@ class FakeSocket implements PairingSocket {
   credentials:()=>void=()=>{}; requests:string[]=[]; logoutCount=0; endCount=0;
   onUpdate(cb:typeof this.update) {this.update=cb;} onCredentials(cb:()=>void) {this.credentials=cb;}
   async requestPairingCode(phone:string) {this.requests.push(phone); return 'ABCD1234';}
+  async sendVoice(_jid:string,_audio:Buffer,_waveform:Uint8Array,_seconds:number){return 'message-id';}
   async logout(){this.logoutCount++;} async end(){this.endCount++;}
 }
 const tick = () => new Promise(resolve => setImmediate(resolve));
@@ -46,4 +47,14 @@ test('late pairing code is discarded after disconnect', async () => {
   const pairing=new LinkedDevicePairing({enabled:true,ownerUserId:'owner'},vault,()=>socket);
   await pairing.connect('owner','+2348001234567'); socket.update({qr:'hidden'}); await pairing.disconnect('owner'); resolve('ABCD1234'); await tick();
   assert.equal(pairing.status('owner'),'disconnected'); assert.equal(pairing.takePairingCode('owner'),null);
+});
+
+test('one requested pairing restart reconnects without retrying a send', async () => {
+  const records=new MemoryStore(); const vault=new EncryptedAuthStore(records,'owner',randomBytes(32).toString('base64')); const sockets:FakeSocket[]=[];
+  const pairing=new LinkedDevicePairing({enabled:true,ownerUserId:'owner'},vault,()=>{const s=new FakeSocket();sockets.push(s);return s;});
+  await pairing.connect('owner','+2348001234567');
+  (sockets[0].update as (x:unknown)=>void)({connection:'close',lastDisconnect:{error:{output:{statusCode:515}}}});
+  await tick(); await tick(); assert.equal(sockets.length,2); assert.equal(pairing.status('owner'),'connecting');
+  sockets[1].update({connection:'open'}); await tick(); assert.equal(pairing.status('owner'),'connected');
+  await pairing.disconnect('owner');
 });

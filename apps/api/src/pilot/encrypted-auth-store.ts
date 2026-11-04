@@ -11,6 +11,8 @@ export interface AuthRecordStore {
 
 export class EncryptedAuthStore {
   private readonly key: Buffer;
+  private generation = 0;
+  private writes: Promise<void> = Promise.resolve();
   constructor(private readonly store: AuthRecordStore, private readonly owner: string, keyBase64: string) {
     if (!owner) throw new Error('An owner is required.');
     this.key = Buffer.from(keyBase64, 'base64');
@@ -32,8 +34,17 @@ export class EncryptedAuthStore {
     const plaintext = Buffer.concat([cipher.update(Buffer.from(payload.data, 'base64')), cipher.final()]);
     return JSON.parse(plaintext.toString('utf8'), BufferJSON.reviver);
   }
-  async clear(): Promise<void> { await this.store.clear(this.owner); }
+  private write(generation:number, fn:()=>Promise<void>):Promise<void> {
+    const operation=this.writes.then(async()=>{ if(generation!==this.generation) throw new Error('Session was disconnected.'); await fn(); });
+    this.writes=operation.catch(()=>{}); return operation;
+  }
+  async clear(): Promise<void> {
+    this.generation++;
+    const operation=this.writes.then(()=>this.store.clear(this.owner));
+    this.writes=operation.catch(()=>{}); await operation;
+  }
   async load(): Promise<{ state: AuthenticationState; saveCreds: () => Promise<void> }> {
+    await this.writes; const generation=this.generation;
     const records = await this.store.read(this.owner, ['creds']);
     // Never silently replace corrupt or undecryptable credentials with a new session.
     const creds = records.creds ? this.decrypt('creds', records.creds) as AuthenticationState['creds'] : initAuthCreds();
@@ -54,10 +65,10 @@ export class EncryptedAuthStore {
         for (const [category, entries] of Object.entries(data)) for (const [id, value] of Object.entries(entries || {})) {
           const name = JSON.stringify([category, id]); updates[name] = value == null ? null : this.encrypt(name, value);
         }
-        if (Object.keys(updates).length) await this.store.writeBatch(this.owner, updates);
+        if (Object.keys(updates).length) await this.write(generation, () => this.store.writeBatch(this.owner, updates));
       },
-      clear: () => this.store.clear(this.owner),
+      clear: () => this.clear(),
     } };
-    return { state, saveCreds: () => this.store.writeBatch(this.owner, { creds: this.encrypt('creds', state.creds) }) };
+    return { state, saveCreds: () => this.write(generation, () => this.store.writeBatch(this.owner, { creds: this.encrypt('creds', state.creds) })) };
   }
 }

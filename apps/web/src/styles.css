@@ -747,3 +747,19 @@ html[data-theme="dark"] .connections-intro p, html[data-theme="dark"] .channel-r
 html[data-theme="dark"] .channel-list, html[data-theme="dark"] .channel-row { border-color:#3b5944; }
 html[data-theme="dark"] .channel-badge { background:#2a4331; color:#d0e5d1; }
 @media(max-width:400px) { .channel-row { gap:8px; } .channel-badge { padding:6px; font-size:8px; } }
+.personal-whatsapp { margin-top:18px; max-width:100%; }
+.wa-risk { display:flex; gap:10px; align-items:flex-start; padding:14px; margin:16px 0; border:1px solid #eadcc7; border-radius:10px; background:#fff8ef; color:#6e5735; font-size:11px; }
+.wa-risk svg { flex:none; } .wa-risk a { color:inherit; font-weight:800; }
+.wa-label { display:grid; gap:7px; font-size:11px; font-weight:800; margin:13px 0; }
+.wa-label input { width:100%; border:1px solid #d9e2d9; border-radius:9px; padding:12px; background:#fff; color:#26372c; }
+.wa-check { display:flex; align-items:flex-start; gap:8px; font-size:11px; line-height:1.5; margin:12px 0; }
+.wa-check input { margin:2px 0 0; flex:none; }
+.wa-pair { border:1px solid #e2e9df; padding:16px; margin:15px 0; border-radius:10px; font-size:12px; }
+.wa-pair p,.personal-send p { font-size:11px; color:#6a7c70; margin-top:8px; }
+.wa-code { display:block; font-size:22px; font-weight:800; letter-spacing:.12em; margin:10px 0; }
+.personal-send { border-top:1px solid #e3ebe3; margin-top:20px; padding-top:18px; }
+.personal-send h3 { font-size:14px; }
+html[data-theme="dark"] .wa-risk { background:#493c2a; border-color:#806b4b; color:#f2dfbf; }
+html[data-theme="dark"] .wa-label input { background:#172a1e; color:#eef9ee; border-color:#47634d; }
+html[data-theme="dark"] .wa-pair,html[data-theme="dark"] .personal-send { border-color:#47634d; }
+html[data-theme="dark"] .wa-pair p,html[data-theme="dark"] .personal-send p { color:#b1c9b8; }
