@@ -32,6 +32,7 @@ export class EncryptedAuthStore {
     const plaintext = Buffer.concat([cipher.update(Buffer.from(payload.data, 'base64')), cipher.final()]);
     return JSON.parse(plaintext.toString('utf8'), BufferJSON.reviver);
   }
+  async clear(): Promise<void> { await this.store.clear(this.owner); }
   async load(): Promise<{ state: AuthenticationState; saveCreds: () => Promise<void> }> {
     const records = await this.store.read(this.owner, ['creds']);
     // Never silently replace corrupt or undecryptable credentials with a new session.

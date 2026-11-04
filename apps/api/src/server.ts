@@ -10,6 +10,10 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { z } from "zod";
 import { understandAudio } from "./understand.js";
+import { EncryptedAuthStore } from "./pilot/encrypted-auth-store.js";
+import { SupabaseAuthRecordStore } from "./pilot/supabase-auth-record-store.js";
+import { LinkedDevicePairing } from "./pilot/linked-device.js";
+import { registerPairingRoutes } from "./pilot/pairing-routes.js";
 import { canonicalAudioMime, probeAudioDuration } from "./audio.js";
 import { randomUUID } from "node:crypto";
 import { supabaseAdmin, supabasePublic, audioBucket, type AuthenticatedUser } from "./supabase.js";
@@ -29,6 +33,9 @@ const env = z.object({
   MAX_AUDIO_SECONDS: z.coerce.number().int().positive().max(3600).default(120),
   MAX_TRANSLATIONS_PER_USER_PER_DAY: z.coerce.number().int().positive().max(100).default(3),
   WEB_DIST_PATH: z.string().optional(),
+  PERSONAL_WHATSAPP_PILOT_ENABLED: z.enum(["true", "false"]).default("false"),
+  PERSONAL_WHATSAPP_OWNER_ID: z.string().uuid().optional(),
+  PERSONAL_WHATSAPP_SESSION_KEY: z.string().optional(),
 }).parse(process.env);
 if (!supabasePublic) throw new Error("Set SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY for API token verification.");
 
@@ -88,6 +95,15 @@ async function authenticate(request: FastifyRequest, reply: FastifyReply) {
   const { data, error } = await supabasePublic!.auth.getUser(token);
   if (error || !data.user) return reply.code(401).send({ error: "INVALID_SESSION", message: "Your session is invalid or expired. Sign in again." });
   request.user = { id: data.user.id, email: data.user.email || undefined };
+}
+
+// Feature is deliberately disabled by default; requires a migrated database,
+// operator-managed key, a single server instance and owner-only real-device testing.
+if (env.PERSONAL_WHATSAPP_PILOT_ENABLED === "true") {
+  if (!env.PERSONAL_WHATSAPP_OWNER_ID || !env.PERSONAL_WHATSAPP_SESSION_KEY) throw new Error("Personal WhatsApp requires owner and session-key configuration.");
+  const policy = { enabled: true, ownerUserId: env.PERSONAL_WHATSAPP_OWNER_ID };
+  const vault = new EncryptedAuthStore(new SupabaseAuthRecordStore(supabaseAdmin), policy.ownerUserId, env.PERSONAL_WHATSAPP_SESSION_KEY);
+  registerPairingRoutes(app, {policy, pairing:new LinkedDevicePairing(policy,vault), authenticate});
 }
 
 async function readUpload(part: MultipartFile) {
