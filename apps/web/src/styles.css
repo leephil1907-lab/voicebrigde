@@ -727,3 +727,23 @@ html:not([data-theme="dark"]) .mobile-bottom-nav button.active { background:#edf
 @media (prefers-reduced-motion:reduce) { .top-bar .top-user { transition:none; } }
 .language-flag-note { margin: 10px 0 0; color: #65756a; font-size: 12px; line-height: 1.5; }
 html[data-theme="dark"] .language-flag-note { color: #acbbb0; }
+
+/* Connections: show only services that really work. */
+.connections-page .connections-intro { display:flex; align-items:center; gap:14px; padding:18px 20px; margin-bottom:20px; border:1px solid #e2e9df; border-radius:14px; background:#f0f4ed; }
+.connections-intro-icon { width:42px; height:42px; border-radius:12px; display:grid; place-items:center; flex:none; background:#fff; color:#536b58; }
+.connections-intro strong { font-size:13px; color:#283a2e; }
+.connections-intro p { font-size:11px; color:#65766a; margin-top:3px; }
+.channel-list { border-top:1px solid #eef2ec; }
+.channel-row { display:flex; align-items:center; gap:12px; padding:15px 0; border-bottom:1px solid #eef2ec; }
+.channel-row > div { min-width:0; flex:1; }
+.channel-row strong { font-size:12px; }
+.channel-row p { font-size:10px; color:#718076; margin-top:3px; }
+.channel-icon { display:grid; place-items:center; width:42px; height:42px; border-radius:12px; flex:none; }
+.channel-badge { font-size:9px; font-weight:800; color:#66746a; background:#f3f5f2; border-radius:30px; padding:7px 10px; white-space:nowrap; }
+html[data-theme="dark"] .connections-page .connections-intro { background:#203a2b; border-color:#3b5944; }
+html[data-theme="dark"] .connections-intro-icon { background:#304c37; color:#d0e5d1; }
+html[data-theme="dark"] .connections-intro strong { color:#ecf6ed; }
+html[data-theme="dark"] .connections-intro p, html[data-theme="dark"] .channel-row p { color:#b1c9b8; }
+html[data-theme="dark"] .channel-list, html[data-theme="dark"] .channel-row { border-color:#3b5944; }
+html[data-theme="dark"] .channel-badge { background:#2a4331; color:#d0e5d1; }
+@media(max-width:400px) { .channel-row { gap:8px; } .channel-badge { padding:6px; font-size:8px; } }

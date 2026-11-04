@@ -266,6 +266,16 @@ test('unsupported Android file sharing shows an error without sending or downloa
   expect(downloaded).toBe(false);
 });
 
+test('connections shows truthful sharing options and returns to the studio', async ({page}) => {
+  await setup(page); await page.goto('/');
+  await page.getByRole('navigation', {name:'Main navigation'}).getByRole('button',{name:'Connections'}).click();
+  await expect(page.getByRole('heading',{name:'Connections'})).toBeVisible();
+  await expect(page.getByText('Direct account connections are not available yet.',{exact:false})).toBeVisible();
+  await expect(page.getByText('Manual share',{exact:true})).toHaveCount(2);
+  await page.getByRole('button',{name:'Go to voice studio'}).click();
+  await expect(page.getByRole('heading',{name:'Your voice note',exact:true})).toBeVisible();
+});
+
 test('mobile account tab opens profile and signed-in user can sign out', async ({browser}) => {
   const page = await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   await setup(page); await page.goto('/'); await signIn(page);
