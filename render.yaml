@@ -22,6 +22,18 @@ services:
         sync: false
       - key: ELEVENLABS_API_KEY
         sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_WEBHOOK_SECRET
+        sync: false
+      - key: PAYSTACK_CURRENCY
+        value: NGN
+      - key: PAYSTACK_APP_URL
+        value: https://voicebridge-81xs.onrender.com
+      - key: PAYSTACK_CREDIT_PACKAGES_JSON
+        value: "[]"
+      - key: PAYSTACK_SUBSCRIPTION_PLANS_JSON
+        value: "[]"
       # Optional messaging variables can be added later in the Render dashboard.
       - key: SUPABASE_STORAGE_BUCKET
         value: voicebridge-private
