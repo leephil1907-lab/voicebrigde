@@ -10,14 +10,17 @@ type Dependencies = {
   openAiApiKey?: string;
 };
 
-const supportedLanguages = new Set([
+const supportedInputLanguages = new Set([
   "en", "es", "fr", "pt", "de", "it", "ar", "zh", "ja", "ko",
-  "ha", "yo", "sw", "hi", "nl", "ru", "tr", "ur",
+  "ha", "yo", "sw", "hi", "nl", "ru", "tr", "ur", "id", "vi",
+]);
+const supportedOutputLanguages = new Set([
+  "en", "es", "pt", "fr", "ja", "ru", "zh", "de", "ko", "hi", "id", "vi", "it",
 ]);
 
 const languagePair = z.object({
-  spokenLanguage: z.string().min(2).max(8).refine((value) => supportedLanguages.has(value), "Choose a supported spoken language."),
-  preferredLanguage: z.string().min(2).max(8).refine((value) => supportedLanguages.has(value), "Choose a supported listening language."),
+  spokenLanguage: z.string().min(2).max(8).refine((value) => supportedInputLanguages.has(value), "Choose a supported spoken language."),
+  preferredLanguage: z.string().min(2).max(8).refine((value) => supportedOutputLanguages.has(value), "Choose a supported listening language.");
 });
 
 function userId(request: FastifyRequest): string {
