@@ -110,7 +110,7 @@ The root `render.yaml` defines one paid Pro web service running the API, website
 
 VoiceBridge uses Paystack for NGN checkout. All prices and entitlements are server-owned through `PAYSTACK_CREDIT_PACKAGES_JSON` and `PAYSTACK_SUBSCRIPTION_PLANS_JSON`; clients submit only a product code. Amounts are in kobo. Never place Paystack secret keys in the web or mobile bundle.
 
-**Credit unit:** 60 credits = one billable minute. Audio is billed in whole-minute blocks, rounded up, for each target language. A two-minute recording translated into two target languages consumes four minutes (240 credits). A new account receives a one-time 60-credit trial allowance. Purchased credits can be used alongside subscription allowances.
+**Credit unit:** 60 credits = one billable minute. Audio is billed in whole-minute blocks, rounded up, for each target language. A two-minute recording translated into two target languages consumes four minutes (240 credits). A new account receives a one-time 60-credit trial allowance. Purchased credits can be used alongside subscription allowances. Unused subscription minutes expire at the end of the billing period; purchased wallet credits remain separate from that monthly allowance.
 
 Recommended one-time credit packages:
 
