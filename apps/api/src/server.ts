@@ -47,7 +47,7 @@ const env = z.object({
   PAYSTACK_SUBSCRIPTION_PLANS_JSON: z.string().default("[]"),
 }).parse(process.env);
 const paystackCatalog = parsePaystackCatalog(env.PAYSTACK_CREDIT_PACKAGES_JSON, env.PAYSTACK_SUBSCRIPTION_PLANS_JSON);
-const paystackAppUrl = (env.PAYSTACK_APP_URL || process.env.RENDER_EXTERNAL_URL || "https://voicebridge-81xs.onrender.com").replace(/\\/$/, "");
+const paystackAppUrl = (env.PAYSTACK_APP_URL || process.env.RENDER_EXTERNAL_URL || "https://voicebridge-81xs.onrender.com").replace(/\/$/, "");
 if (!supabasePublic) throw new Error("Set SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY for API token verification.");
 
 declare module "fastify" { interface FastifyRequest { user: AuthenticatedUser | null; rawBody: Buffer | null } }
