@@ -5,8 +5,8 @@ import { apiRequest } from "../lib/api";
 
 const LANGUAGES = [
   ["en","English"],["es","Spanish"],["fr","French"],["pt","Portuguese"],["de","German"],["it","Italian"],
-  ["ar","Arabic"],["zh","Chinese"],["ja","Japanese"],["ko","Korean"],["ha","Hausa"],["yo","Yoruba"],
-  ["sw","Swahili"],["hi","Hindi"],["nl","Dutch"],["ru","Russian"],["tr","Turkish"],["ur","Urdu"],["id","Indonesian"],["vi","Vietnamese"],
+  ["ar","Arabic"],["zh","Chinese"],["ja","Japanese"],["ko","Korean"],["yo","Yoruba"],
+  ["sw","Swahili"],["hi","Hindi"],["nl","Dutch"],["ru","Russian"],["tr","Turkish"],["id","Indonesian"],["vi","Vietnamese"],
 ] as const;
 const OUTPUT_LANGUAGES = [
   ["en","English"],["es","Spanish"],["pt","Portuguese"],["fr","French"],["ja","Japanese"],["ru","Russian"],
