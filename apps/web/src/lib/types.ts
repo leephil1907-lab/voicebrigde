@@ -105,6 +105,7 @@ export interface BillingSubscriptionPlan {
   paystackPlanCode: string;
   amountMinor: number;
   interval: "month" | "year";
+  includedMinutes: number;
 }
 export interface BillingCatalog {
   provider: "paystack";
