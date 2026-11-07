@@ -66,3 +66,16 @@ export interface DeliveryCapabilities {
   authorizedSender: boolean;
   channels: { whatsapp: boolean; telegram: boolean };
 }
+
+export interface AccountOverview {
+  planCode: "free" | "creator" | "pro" | "business" | "enterprise" | string;
+  subscriptionStatus: string;
+  currency: string;
+  billingInterval: "month" | "year" | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  creditsAvailable: number;
+  translationsLast30Days: number;
+  maxTranslationsPer24Hours: number;
+  checkoutEnabled: boolean;
+}
