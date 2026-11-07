@@ -150,7 +150,7 @@ Create three monthly plans in the Paystack dashboard first, then set the subscri
 ]
 ```
 
-**Metering and refunds:** the API reserves credits atomically before a job becomes visible to the worker. Subscription minutes are used first; purchased credits cover additional usage. Completion settles the reservation. A terminal job failure automatically refunds wallet credits or releases the subscription allowance. Duplicate reservation attempts are idempotent. The database records completed usage and owner-scoped credit reservations.
+**Metering and refunds:** the API reserves credits atomically before a job becomes visible to the worker. Subscription minutes are used first; purchased credits cover additional usage. Completion settles the reservation. A terminal job failure automatically refunds wallet credits or releases the subscription allowance. Duplicate reservation attempts are idempotent. Paystack-issued customer refunds and disputes are not yet automatically reconciled against consumed credits; keep those under manual review until that workflow is added. The database records completed usage and owner-scoped credit reservations.
 
 ### Paystack environment setup
 
