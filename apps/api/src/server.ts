@@ -479,11 +479,11 @@ app.post("/webhooks/paystack", { config: { rateLimit: { max: 120, timeWindow: "1
       if (subscriptionCode && email && paystackPlanCode) {
         const { data: pendingPayment } = await supabaseAdmin.from("voicebridge_payments")
           .select("user_id,plan_code,billing_interval,currency")
-          .eq("payment_type", "subscription").eq("billing_email", email)
+          .eq("payment_type", "subscription").ilike("billing_email", email)
           .eq("paystack_plan_code", paystackPlanCode).in("status", ["pending", "success"])
           .order("created_at", { ascending: false }).limit(1).maybeSingle();
         if (pendingPayment) {
-          await supabaseAdmin.from("voicebridge_subscriptions").upsert({
+          const { error: subscriptionError } = await supabaseAdmin.from("voicebridge_subscriptions").upsert({
             user_id: pendingPayment.user_id,
             provider: "paystack",
             provider_customer_id: customerCode || null,
@@ -498,6 +498,7 @@ app.post("/webhooks/paystack", { config: { rateLimit: { max: 120, timeWindow: "1
             metadata: { paystackPlanCode },
             updated_at: new Date().toISOString(),
           }, { onConflict: "provider_subscription_id" });
+          if (subscriptionError) throw subscriptionError;
         }
       }
     } else if (event === "subscription.not_renew" || event === "subscription.disable" || event === "invoice.payment_failed" || event === "invoice.update") {
@@ -511,8 +512,9 @@ app.post("/webhooks/paystack", { config: { rateLimit: { max: 120, timeWindow: "1
           update.status = "active";
           if (data.next_payment_date) update.current_period_end = data.next_payment_date;
         }
-        await supabaseAdmin.from("voicebridge_subscriptions").update(update)
+        const { error: updateError } = await supabaseAdmin.from("voicebridge_subscriptions").update(update)
           .eq("provider", "paystack").eq("provider_subscription_id", subscriptionCode);
+        if (updateError) throw updateError;
       }
     }
     const eventKey = event + ":" + String(data.reference || data.id || data.subscription_code || data.subscription?.subscription_code || "event");
