@@ -336,7 +336,7 @@ app.get("/v1/account/overview", { preHandler: authenticate }, async (request, re
     subscriptionMinutesUsed,
     subscriptionMinutesRemaining: Math.max(0, subscriptionMinutesIncluded - subscriptionMinutesUsed),
     translationsLast30Days: usageResult.count || 0,
-    maxTranslationsPer24Hours: env.MAX_TRANSLATIONS_PER_USER_PER_DAY,
+    maxTranslationsPerHour: 20,
     checkoutEnabled: Boolean(env.PAYSTACK_SECRET_KEY),
     billingProvider: "paystack",
   };
