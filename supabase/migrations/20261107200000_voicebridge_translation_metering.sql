@@ -269,6 +269,7 @@ begin
 end;
 $$;
 revoke all on function public.finalize_voicebridge_translation_billing() from public, anon, authenticated;
+grant execute on function public.finalize_voicebridge_translation_billing() to service_role;
 drop trigger if exists voicebridge_translation_billing_finalize on public.voicebridge_jobs;
 create trigger voicebridge_translation_billing_finalize
   after update of status on public.voicebridge_jobs
@@ -319,6 +320,7 @@ begin
 end;
 $$;
 revoke all on function public.refund_voicebridge_translation_on_delete() from public, anon, authenticated;
+grant execute on function public.refund_voicebridge_translation_on_delete() to service_role;
 drop trigger if exists voicebridge_translation_billing_delete on public.voicebridge_jobs;
 create trigger voicebridge_translation_billing_delete
   before delete on public.voicebridge_jobs
