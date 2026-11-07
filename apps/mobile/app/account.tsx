@@ -21,7 +21,7 @@ type BillingCatalog = {
   currency: "NGN";
   enabled: boolean;
   creditPackages: { code: string; name: string; description: string; amountMinor: number; credits: number }[];
-  subscriptionPlans: { code: string; name: string; description: string; paystackPlanCode: string; amountMinor: number; interval: "month" | "year" }[];
+  subscriptionPlans: { code: string; name: string; description: string; paystackPlanCode: string; amountMinor: number; interval: "month" | "year"; includedMinutes: number }[];
 };
 type VoiceProfile = {
   id: string;
@@ -151,19 +151,19 @@ export default function AccountScreen() {
           <Text style={styles.plan}>{overview.planCode.toUpperCase()} PLAN</Text>
           <View style={styles.metricRow}><Text style={styles.metricLabel}>Translations · last 30 days</Text><Text style={styles.metricValue}>{overview.translationsLast30Days}</Text></View>
           <View style={styles.metricRow}><Text style={styles.metricLabel}>Rolling 24-hour limit</Text><Text style={styles.metricValue}>{overview.maxTranslationsPer24Hours}</Text></View>
-          <View style={styles.metricRow}><Text style={styles.metricLabel}>Available credits</Text><Text style={styles.metricValue}>{overview.creditsAvailable}</Text></View>
-          <Text style={styles.note}>Payments are processed securely by Paystack. Credits are added only after server verification.</Text>
+          <View style={styles.metricRow}><Text style={styles.metricLabel}>Available credits</Text><Text style={styles.metricValue}>{overview.creditsAvailable} · {Math.floor(overview.creditsAvailable / 60)} min</Text></View>
+          <Text style={styles.note}>Payments are processed securely by Paystack. 60 credits equal one translation minute. Audio is billed in whole-minute blocks per target language; failed translations are refunded automatically.</Text>
         </> : <Text style={styles.copy}>{busy ? "Loading…" : "Usage information is not available."}</Text>}
       </View>
 
       <View style={styles.card}>
         <Text style={styles.kicker}>PAYSTACK CHECKOUT · NGN</Text>
         <Text style={styles.cardTitle}>Credits & subscriptions</Text>
-        {!billingCatalog?.enabled ? <Text style={styles.copy}>Paystack checkout will appear here after the server test keys and prices are configured.</Text> : <>
+        {!billingCatalog?.enabled ? <Text style={styles.copy}>Paystack checkout will appear here after payment credentials and prices are configured.</Text> : <>
           <Text style={styles.label}>Credit top-ups</Text>
-          {billingCatalog.creditPackages.length ? billingCatalog.creditPackages.map(item => <View key={item.code} style={styles.billingRow}><View style={{ flex: 1 }}><Text style={styles.profileName}>{item.name}</Text><Text style={styles.profileMeta}>{item.credits.toLocaleString("en-NG")} credits · {formatNGN(item.amountMinor)}</Text>{item.description ? <Text style={styles.profileMeta}>{item.description}</Text> : null}</View><Pressable disabled={Boolean(billingBusyCode)} onPress={() => void startCheckout("credit_topup", item.code)} style={styles.buyButton}><Text style={styles.buyButtonText}>{billingBusyCode === "credit_topup:"+item.code ? "…" : "Buy"}</Text></Pressable></View>) : <Text style={styles.copy}>No credit packages are configured yet.</Text>}
+          {billingCatalog.creditPackages.length ? billingCatalog.creditPackages.map(item => <View key={item.code} style={styles.billingRow}><View style={{ flex: 1 }}><Text style={styles.profileName}>{item.name}</Text><Text style={styles.profileMeta}>{Math.floor(item.credits / 60)} translation minute{item.credits === 60 ? "" : "s"} · {formatNGN(item.amountMinor)}</Text>{item.description ? <Text style={styles.profileMeta}>{item.description}</Text> : null}</View><Pressable disabled={Boolean(billingBusyCode)} onPress={() => void startCheckout("credit_topup", item.code)} style={styles.buyButton}><Text style={styles.buyButtonText}>{billingBusyCode === "credit_topup:"+item.code ? "…" : "Buy"}</Text></Pressable></View>) : <Text style={styles.copy}>No credit packages are configured yet.</Text>}
           <Text style={styles.label}>Recurring plans</Text>
-          {billingCatalog.subscriptionPlans.length ? billingCatalog.subscriptionPlans.map(item => <View key={item.code} style={styles.billingRow}><View style={{ flex: 1 }}><Text style={styles.profileName}>{item.name}</Text><Text style={styles.profileMeta}>{formatNGN(item.amountMinor)} / {item.interval === "month" ? "month" : "year"}</Text>{item.description ? <Text style={styles.profileMeta}>{item.description}</Text> : null}</View><Pressable disabled={Boolean(billingBusyCode)} onPress={() => void startCheckout("subscription", item.code)} style={styles.buyButton}><Text style={styles.buyButtonText}>{billingBusyCode === "subscription:"+item.code ? "…" : "Subscribe"}</Text></Pressable></View>) : <Text style={styles.copy}>Subscription plans will appear after Paystack plan codes are configured.</Text>}
+          {billingCatalog.subscriptionPlans.length ? billingCatalog.subscriptionPlans.map(item => <View key={item.code} style={styles.billingRow}><View style={{ flex: 1 }}><Text style={styles.profileName}>{item.name}</Text><Text style={styles.profileMeta}>{formatNGN(item.amountMinor)} / {item.interval === "month" ? "month" : "year"} · {item.includedMinutes} minutes</Text>{item.description ? <Text style={styles.profileMeta}>{item.description}</Text> : null}</View><Pressable disabled={Boolean(billingBusyCode)} onPress={() => void startCheckout("subscription", item.code)} style={styles.buyButton}><Text style={styles.buyButtonText}>{billingBusyCode === "subscription:"+item.code ? "…" : "Subscribe"}</Text></Pressable></View>) : <Text style={styles.copy}>Subscription plans will appear after Paystack plan codes are configured.</Text>}
         </>}
       </View>
 
