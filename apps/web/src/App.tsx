@@ -106,20 +106,24 @@ export default function App() {
     const reference = new URLSearchParams(window.location.search).get("reference");
     if (!auth.session || !reference || !reference.startsWith("VB-")) return;
     let active = true;
-    void apiRequest<{ status: string; alreadyProcessed: boolean }>(
-      "/v1/billing/verify/" + encodeURIComponent(reference), {}, auth.getToken(),
-    ).then(async result => {
-      if (!active) return;
-      flash(result.alreadyProcessed ? "Payment was already confirmed." : "Payment confirmed. Your account has been updated.");
-      await Promise.all([refreshAccountOverview(), refreshBillingCatalog()]);
-    }).catch(error => {
-      if (active) setBillingError((error as Error).message);
-    }).finally(() => {
-      if (!active) return;
-      const url = new URL(window.location.href);
-      url.searchParams.delete("reference"); url.searchParams.delete("trxref"); url.searchParams.delete("paystack");
-      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-    });
+    void (async () => {
+      try {
+        const result = await apiRequest<{ status: string; alreadyProcessed: boolean }>(
+          "/v1/billing/verify/" + encodeURIComponent(reference), {}, await auth.getToken(),
+        );
+        if (!active) return;
+        flash(result.alreadyProcessed ? "Payment was already confirmed." : "Payment confirmed. Your account has been updated.");
+        await Promise.all([refreshAccountOverview(), refreshBillingCatalog()]);
+      } catch (error) {
+        if (active) setBillingError((error as Error).message);
+      } finally {
+        if (active) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("reference"); url.searchParams.delete("trxref"); url.searchParams.delete("paystack");
+          window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+        }
+      }
+    })();
     return () => { active = false; };
   }, [auth.session?.user.id, auth.getToken, refreshAccountOverview, refreshBillingCatalog]);
 
