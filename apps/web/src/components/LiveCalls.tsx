@@ -178,7 +178,7 @@ export function LiveCalls({ client, getToken, signedIn, onSignIn, onMessage }: P
         channelRef.current = channel;
         channel.on("broadcast", { event: "signal" }, async ({ payload }) => {
           if (cancelled || !peer) return;
-          if (payload.type === "offer" && activeCall.role === "guest") {
+          if (payload.type === "offer" && activeCall.role === "guest" && !peer.remoteDescription) {
             await peer.setRemoteDescription(payload.description as RTCSessionDescriptionInit);
             for (const candidate of pendingIceRef.current.splice(0)) await addRemoteCandidate(candidate);
             const answer = await peer.createAnswer();
@@ -200,12 +200,14 @@ export function LiveCalls({ client, getToken, signedIn, onSignIn, onMessage }: P
             polling = window.setInterval(async () => {
               try {
                 const call = await apiRequest<{ status: string }>("/v1/live-calls/" + encodeURIComponent(activeCall.id), {}, await getToken());
-                if (call.status === "active" && !offerStartedRef.current && peer) {
-                  offerStartedRef.current = true;
-                  const offer = await peer.createOffer();
-                  await peer.setLocalDescription(offer);
-                  await sendSignal({ type: "offer", description: peer.localDescription });
-                  setStatus("connecting");
+                if (call.status === "active" && peer && peer.connectionState !== "connected") {
+                  if (!offerStartedRef.current) {
+                    offerStartedRef.current = true;
+                    const offer = await peer.createOffer();
+                    await peer.setLocalDescription(offer);
+                    setStatus("connecting");
+                  }
+                  if (peer.localDescription) await sendSignal({ type: "offer", description: peer.localDescription });
                 }
                 if (call.status === "ended" || call.status === "failed") { setStatus("ended"); cleanup(); setActiveCall(null); }
               } catch { /* transient status polling failure */ }
