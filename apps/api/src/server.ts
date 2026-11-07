@@ -330,7 +330,7 @@ app.get("/v1/account/overview", { preHandler: authenticate }, async (request, re
   let subscriptionMinutesUsed = 0;
   if (subscription?.current_period_start && subscription?.current_period_end && subscriptionMinutesIncluded > 0) {
     const { data: reservations, error: reservationError } = await supabaseAdmin.from("voicebridge_credit_reservations")
-      .select("credits_reserved")
+      .select("subscription_credits")
       .eq("user_id", userId).eq("funding_source", "subscription")
       .in("status", ["reserved", "settled"])
       .eq("period_start", subscription.current_period_start)
@@ -339,7 +339,7 @@ app.get("/v1/account/overview", { preHandler: authenticate }, async (request, re
       request.log.error({ userId, error: reservationError }, "Could not load subscription usage");
       return reply.code(503).send({ error: "SUBSCRIPTION_USAGE_UNAVAILABLE", message: "Subscription usage is not available yet." });
     }
-    subscriptionMinutesUsed = (reservations || []).reduce((sum, item) => sum + Number(item.credits_reserved || 0), 0) / 60;
+    subscriptionMinutesUsed = (reservations || []).reduce((sum, item) => sum + Number(item.subscription_credits || 0), 0) / 60;
   }
   return {
     planCode: subscription?.plan_code || "free",
