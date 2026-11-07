@@ -51,7 +51,7 @@ The existing personal-device pairing pilot is not used for this feature.
 - Meta app with WhatsApp product, phone-number registration, and Calling enabled for the number.
 - Long-lived system-user access token with the required WhatsApp permissions.
 - Phone Number ID, WABA ID, Meta App Secret, webhook verify token, and selected Graph API version.
-- Public HTTPS webhook URL: `https://voicebridge-81xs.onrender.com/v1/webhooks/whatsapp`.
+- Planned public HTTPS webhook URL: `https://voicebridge-81xs.onrender.com/v1/webhooks/whatsapp`. Do not configure it in Meta until the webhook handler and LiveKit connector bridge are deployed.
 - LiveKit Cloud project URL, API key, and API secret.
 - OpenAI API key with Realtime Translation access and billing enabled.
 
