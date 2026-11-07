@@ -105,3 +105,17 @@ VoiceBridge is configured for one always-on Render Pro Docker web service runnin
 ### Render Pro setup
 
 The root `render.yaml` defines one paid Pro web service running the API, website and dubbing worker together. See [`docs/RENDER_PRO_QUICKSTART.md`](docs/RENDER_PRO_QUICKSTART.md) for costs, required server-side settings, Supabase email configuration and launch verification. A Pro workspace subscription does not automatically cover the compute charges of additional services.
+
+## Paystack billing setup
+
+VoiceBridge uses Paystack for NGN checkout. All prices and credit entitlements are defined on the server through `PAYSTACK_CREDIT_PACKAGES_JSON` and `PAYSTACK_SUBSCRIPTION_PLANS_JSON`; the client submits only a product code. Amounts are configured in kobo. Never place Paystack secret keys in the web or mobile bundle.
+
+1. Start with Paystack test-mode keys and set `PAYSTACK_SECRET_KEY` and the webhook signing secret `PAYSTACK_WEBHOOK_SECRET` on Render.
+2. Add the webhook URL `https://voicebridge-81xs.onrender.com/webhooks/paystack` in the Paystack test dashboard.
+3. Configure one or more credit packages, for example `[{"code":"starter","name":"Starter","description":"One-time credit pack","amountMinor":500000,"credits":1000}]`.
+4. Create recurring plans in Paystack using the same currency and intervals, then configure their exact plan codes and prices, for example `[{"code":"creator","name":"Creator","description":"Monthly creator plan","paystackPlanCode":"PLN_xxx","amountMinor":2500000,"interval":"month"}]`.
+5. Test checkout, callback verification, duplicate webhook delivery, subscription creation/cancellation, and failed invoices before switching to live keys.
+
+The API verifies every successful charge directly with Paystack and compares the reference, amount and currency with the server-created pending payment before granting credits. Webhook signatures are checked against the raw request body; fulfillment is idempotent in Postgres. The callback never grants value by itself.
+
+Recurring subscriptions require a Paystack plan code created in the same Paystack environment as the API key. Paystack subscription billing is supported for card and Nigeria direct debit; the payment methods offered depend on the merchant account and plan setup.
