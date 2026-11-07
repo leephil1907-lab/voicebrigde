@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { parsePaystackCatalog, verifyPaystackWebhookSignature } from "../src/paystack.js";
 
-test("parses only server-defined Paystack credit packages and subscription plans", () => {
+test("parses server-defined Paystack credit packages and subscription plans", () => {
   const catalog = parsePaystackCatalog(
     JSON.stringify([{ code: "starter", name: "Starter", amountMinor: 500000, credits: 1000 }]),
     JSON.stringify([{ code: "creator", name: "Creator", paystackPlanCode: "PLN_test", amountMinor: 2500000, interval: "month" }]),
@@ -11,9 +11,13 @@ test("parses only server-defined Paystack credit packages and subscription plans
   assert.equal(catalog.credits[0]?.credits, 1000);
   assert.equal(catalog.plans[0]?.paystackPlanCode, "PLN_test");
   assert.throws(() => parsePaystackCatalog(
-    JSON.stringify([{ code: "starter", name: "Starter", amountMinor: 500000, credits: 1000 }]),
+    JSON.stringify([{ code: "bad code", name: "Invalid", amountMinor: 500000, credits: 1000 }]),
     "[]",
-  ).credits[0]!.amountMinor = 1);
+  ));
+  assert.throws(() => parsePaystackCatalog(
+    JSON.stringify([{ code: "starter", name: "Starter", amountMinor: 500000, credits: 1000 }, { code: "starter", name: "Duplicate", amountMinor: 600000, credits: 1200 }]),
+    "[]",
+  ));
 });
 
 test("verifies legacy Paystack HMAC SHA512 signatures against the exact raw body", () => {
