@@ -55,7 +55,7 @@ begin
   if p_duration_seconds is null or p_duration_seconds <= 0 or p_duration_seconds > 3600 then
     raise exception 'INVALID_AUDIO_DURATION';
   end if;
-  perform pg_advisory_xact_lock(hashtext(p_user_id::text));
+  perform pg_advisory_xact_lock(hashtext(p_user_id::text), 0);
   select * into reservation from public.voicebridge_credit_reservations
     where job_id = p_job_id;
   if found then
