@@ -16,7 +16,7 @@ import { LinkedDevicePairing } from "./pilot/linked-device.js";
 import { registerPairingRoutes } from "./pilot/pairing-routes.js";
 import { SupabaseSendStore } from "./pilot/supabase-send-store.js";
 import { canonicalAudioMime, probeAudioDuration } from "./audio.js";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { supabaseAdmin, supabasePublic, audioBucket, type AuthenticatedUser } from "./supabase.js";
 
 const env = z.object({
@@ -254,6 +254,99 @@ app.get("/v1/voice/translations", { preHandler: authenticate }, async (request, 
   if (error) return reply.code(500).send({ error: "JOB_HISTORY_FAILED", message: "Could not load translation history." });
   return { items: data || [] };
 });
+
+// Account overview is read-only; payments and credit mutations remain server/webhook-only.
+app.get("/v1/account/overview", { preHandler: authenticate }, async (request, reply) => {
+  const userId = request.user!.id;
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const [subscriptionResult, creditResult, usageResult] = await Promise.all([
+    supabaseAdmin.from("voicebridge_subscriptions")
+      .select("plan_code,status,currency,billing_interval,current_period_end,cancel_at_period_end")
+      .eq("user_id", userId).in("status", ["active", "trialing", "past_due"])
+      .order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    supabaseAdmin.from("voicebridge_credit_accounts").select("available_credits,currency")
+      .eq("user_id", userId).maybeSingle(),
+    supabaseAdmin.from("voicebridge_jobs").select("id", { count: "exact", head: true })
+      .eq("user_id", userId).gte("created_at", since),
+  ]);
+  const failure = subscriptionResult.error || creditResult.error || usageResult.error;
+  if (failure) {
+    request.log.error({ userId, error: failure }, "Could not load account overview");
+    return reply.code(503).send({ error: "ACCOUNT_OVERVIEW_UNAVAILABLE", message: "Account usage and billing data are not available yet." });
+  }
+  const subscription = subscriptionResult.data;
+  return {
+    planCode: subscription?.plan_code || "free",
+    subscriptionStatus: subscription?.status || "free",
+    currency: subscription?.currency || creditResult.data?.currency || "USD",
+    billingInterval: subscription?.billing_interval || null,
+    currentPeriodEnd: subscription?.current_period_end || null,
+    cancelAtPeriodEnd: subscription?.cancel_at_period_end || false,
+    creditsAvailable: creditResult.data?.available_credits || 0,
+    translationsLast30Days: usageResult.count || 0,
+    maxTranslationsPer24Hours: env.MAX_TRANSLATIONS_PER_USER_PER_DAY,
+    checkoutEnabled: false,
+  };
+});
+
+const voiceProfileConsentVersion = "2026-11-07-v1";
+const voiceProfileConsentText = "I confirm that I am the speaker, or that the speaker has explicitly authorized VoiceBridge to store this voice permission record and process their voice for the selected purpose. I understand consent can be revoked for future use.";
+
+// Voice profiles are authorization records. The current Dubbing v2 pipeline still
+// uses the source recording as its voice reference; it does not promise a permanent clone.
+app.get("/v1/account/voice-profiles", { preHandler: authenticate }, async (request, reply) => {
+  const userId = request.user!.id;
+  const { data: profiles, error } = await supabaseAdmin.from("voicebridge_voice_profiles")
+    .select("id,display_name,status,consent_version,consented_at,revoked_at,created_at")
+    .eq("user_id", userId).order("created_at", { ascending: false }).limit(50);
+  if (error) return reply.code(503).send({ error: "VOICE_PROFILES_UNAVAILABLE", message: "Voice permissions are not available yet." });
+  const { data: consents, error: consentError } = await supabaseAdmin.from("voicebridge_voice_consents")
+    .select("voice_profile_id,consent_scope,speaker_name,granted_at,revoked_at")
+    .eq("user_id", userId);
+  if (consentError) return reply.code(503).send({ error: "VOICE_CONSENTS_UNAVAILABLE", message: "Voice consent records could not be loaded." });
+  const consentByProfile = new Map((consents || []).map(item => [item.voice_profile_id, item]));
+  return { items: (profiles || []).map(profile => ({ ...profile, consent: consentByProfile.get(profile.id) || null })) };
+});
+
+app.post<{ Body: { displayName?: string; consentScope?: string; speakerName?: string } }>("/v1/account/voice-profiles", { preHandler: authenticate }, async (request, reply) => {
+  const input = z.object({
+    displayName: z.string().trim().min(1).max(80),
+    consentScope: z.enum(["own_voice", "authorized_third_party"]),
+    speakerName: z.string().trim().max(80).optional(),
+  }).safeParse(request.body);
+  if (!input.success) return reply.code(400).send({ error: "INVALID_VOICE_PROFILE", message: "Enter a profile name and a valid consent scope." });
+  if (input.data.consentScope === "authorized_third_party" && !input.data.speakerName?.trim()) {
+    return reply.code(400).send({ error: "SPEAKER_NAME_REQUIRED", message: "Enter the speaker's name for an authorized third-party voice." });
+  }
+  const consentTextHash = createHash("sha256").update(voiceProfileConsentText).digest("hex");
+  const { data, error } = await supabaseAdmin.rpc("create_voicebridge_voice_profile", {
+    p_user_id: request.user!.id,
+    p_display_name: input.data.displayName,
+    p_consent_scope: input.data.consentScope,
+    p_speaker_name: input.data.speakerName || null,
+    p_consent_version: voiceProfileConsentVersion,
+    p_consent_text_hash: consentTextHash,
+  });
+  if (error) {
+    request.log.error({ userId: request.user!.id, error }, "Could not create voice profile");
+    return reply.code(503).send({ error: "VOICE_PROFILE_CREATE_FAILED", message: "Could not save this voice permission. Check the database migration and try again." });
+  }
+  const profile = Array.isArray(data) ? data[0] : data;
+  return reply.code(201).send({ item: profile, consentText: voiceProfileConsentText, consentVersion: voiceProfileConsentVersion });
+});
+
+app.post<{ Params: { id: string } }>("/v1/account/voice-profiles/:id/revoke", { preHandler: authenticate }, async (request, reply) => {
+  const id = z.string().uuid().safeParse(request.params.id);
+  if (!id.success) return reply.code(400).send({ error: "INVALID_PROFILE_ID", message: "The voice profile ID is invalid." });
+  const { data, error } = await supabaseAdmin.rpc("revoke_voicebridge_voice_profile", {
+    p_user_id: request.user!.id,
+    p_profile_id: id.data,
+  });
+  if (error) return reply.code(503).send({ error: "VOICE_PROFILE_REVOKE_FAILED", message: "Could not revoke this voice permission." });
+  if (!data) return reply.code(404).send({ error: "VOICE_PROFILE_NOT_FOUND", message: "This voice profile does not exist or is already unavailable." });
+  return { success: true, profileId: id.data, status: "revoked" };
+});
+
 
 
 // Incoming audio is used only for transcription and text translation; no voice cloning.

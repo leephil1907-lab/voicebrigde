@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
 import { Alert, AppState, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { File, Paths } from "expo-file-system";
@@ -26,6 +27,7 @@ const languages = [
 ];
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [session, setSession] = useState<any>(null);
   const [authReady, setAuthReady] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
@@ -41,6 +43,8 @@ export default function HomeScreen() {
   const [detectedSourceLanguage, setDetectedSourceLanguage] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [translationStatus, setTranslationStatus] = useState("");
+  const [voiceConsent, setVoiceConsent] = useState(false);
+  const [accountSummary, setAccountSummary] = useState<any>(null);
   const player = useAudioPlayer(null);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
@@ -65,6 +69,22 @@ export default function HomeScreen() {
     return () => subscription.remove();
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    if (!session || !API_URL || !supabase) { setAccountSummary(null); return; }
+    void (async () => {
+      try {
+        const { data: { session: current } } = await supabase.auth.getSession();
+        if (!current) return;
+        const response = await fetch(API_URL + "/v1/account/overview", { headers: { Authorization: "Bearer " + current.access_token } });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Account overview is unavailable.");
+        if (active) setAccountSummary(data);
+      } catch { if (active) setAccountSummary(null); }
+    })();
+    return () => { active = false; };
+  }, [session]);
+
   async function submitAuth() {
     if (!supabase) return Alert.alert("Authentication is not configured", "Set the Supabase URL and publishable key in the mobile environment.");
     if (!email.trim() || password.length < 8) return Alert.alert("Check your details", "Enter a valid email and a password with at least 8 characters.");
@@ -85,15 +105,9 @@ export default function HomeScreen() {
     } finally { setAuthBusy(false); }
   }
 
-  async function signOut() {
-    if (!supabase) return;
-    const { error } = await supabase.auth.signOut();
-    if (error) Alert.alert("Sign-out failed", error.message);
-    else { setSession(null); setPreviewUrl(null); setRecordingUri(null); }
-  }
-
   async function translateRecording() {
     if (!recordingUri) return;
+    if (!voiceConsent) return Alert.alert("Voice permission required", "Confirm that this is your voice or that you have the speaker's explicit permission.");
     if (!API_URL) return Alert.alert("API address required", "Set EXPO_PUBLIC_API_URL in apps/mobile/.env to your deployed API URL or your computer’s LAN IP.");
     if (!supabase || !session) return Alert.alert("Sign in required", "Sign in before creating a translation.");
     setBusy(true);
@@ -185,6 +199,7 @@ export default function HomeScreen() {
 
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       setRecordingUri(null);
+      setVoiceConsent(false);
       setPreviewUrl(null);
       setSourceTranscript("");
       setTranslatedTranscript("");
@@ -223,8 +238,9 @@ export default function HomeScreen() {
             <Text style={styles.brand}>VOICEBRIDGE</Text>
             <Text style={styles.brandSub}>YOUR VOICE. EVERY LANGUAGE.</Text>
           </View>
-          <Pressable onPress={signOut} style={styles.avatar}><Text style={styles.avatarText}>Sign out</Text></Pressable>
+          <Pressable onPress={() => router.push("/account")} style={styles.avatar}><Text style={styles.avatarText}>Account</Text></Pressable>
         </View>
+        {accountSummary ? <View style={styles.accountSummary}><View><Text style={styles.accountSummaryTitle}>{String(accountSummary.planCode || "free").toUpperCase()} PLAN</Text><Text style={styles.accountSummaryCopy}>{accountSummary.translationsLast30Days || 0} translations · last 30 days</Text><Text style={styles.accountSummaryCopy}>{accountSummary.creditsAvailable || 0} credits available</Text></View><Text style={styles.accountSummaryStatus}>ACCOUNT</Text></View> : null}
 
         <View style={styles.hero}>
           <Text style={styles.eyebrow}>MULTILINGUAL VOICE MESSAGING</Text>
@@ -268,10 +284,14 @@ export default function HomeScreen() {
           </ScrollView>
 
           <View style={styles.voiceSetup}>
-            <Text style={styles.sectionLabel}>VOICE PRESERVATION</Text>
-            <Text style={styles.voiceHint}>VoiceBridge uses the speaker in each recording as the voice reference. You do not need to enroll a separate voice profile for Dubbing v2.</Text>
+            <Text style={styles.sectionLabel}>VOICE PRESERVATION & PERMISSION</Text>
+            <Text style={styles.voiceHint}>VoiceBridge uses this recording as the voice reference for Dubbing v2. Voice identity and expression depend on the provider and should always be checked in the preview.</Text>
+            <Pressable onPress={() => setVoiceConsent(value => !value)} style={styles.consentRow} accessibilityRole="checkbox" accessibilityState={{ checked: voiceConsent }}>
+              <View style={[styles.consentBox, voiceConsent && styles.consentBoxActive]}>{voiceConsent ? <Text style={styles.consentTick}>✓</Text> : null}</View>
+              <Text style={styles.consentText}>I confirm this is my voice, or I have the speaker's explicit permission to reproduce it.</Text>
+            </Pressable>
           </View>
-          <Pressable onPress={translateRecording} disabled={!recordingUri || busy} style={[styles.translateButton, (!recordingUri || busy) && styles.translateDisabled]}>
+          <Pressable onPress={translateRecording} disabled={!recordingUri || !voiceConsent || busy} style={[styles.translateButton, (!recordingUri || !voiceConsent || busy) && styles.translateDisabled]}>
             <Text style={styles.translateButtonText}>{busy ? "Processing your voice…" : "✦  Translate voice · Preserve expression"}</Text>
           </Pressable>
           {previewUrl ? <View style={styles.resultCard}>
@@ -325,6 +345,10 @@ const styles = StyleSheet.create({
   brandSub: { color: "#839080", fontSize: 8, letterSpacing: 1.3, marginTop: 4 },
   avatar: { borderWidth: 1, borderColor: "#344036", borderRadius: 18, paddingHorizontal: 12, paddingVertical: 9 },
   avatarText: { color: "#DCE5D8", fontSize: 11, fontWeight: "700" },
+  accountSummary: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#1B2A1D", borderWidth: 1, borderColor: "#35472C", borderRadius: 14, padding: 13, marginBottom: 22 },
+  accountSummaryTitle: { color: "#D6F269", fontSize: 10, fontWeight: "900", letterSpacing: 1.2 },
+  accountSummaryCopy: { color: "#AAB8A2", fontSize: 9, marginTop: 4 },
+  accountSummaryStatus: { color: "#8E9C85", fontSize: 8, fontWeight: "800", letterSpacing: 1.1 },
   hero: { marginBottom: 27 },
   eyebrow: { color: "#B5CE62", fontSize: 9, fontWeight: "800", letterSpacing: 2, marginBottom: 13 },
   title: { color: "#F3F5EF", fontSize: 33, fontWeight: "800", letterSpacing: -1.1 },

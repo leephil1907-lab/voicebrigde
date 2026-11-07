@@ -76,6 +76,12 @@ For Render Free, the API and durable worker run as two child processes inside on
 - Speech, translation and voice generation: provider adapters; credentials remain server-side
 - Deployment: Render Free single web service (API + worker in one container); separate always-on worker can be added later on a paid plan
 
+## Voice profiles, consent and monetization foundation
+
+The full-platform work is being delivered in phases. The account and billing foundation migration adds owner-scoped voice profiles, explicit consent and revocation records, usage metering, credit ledgers, subscription state and idempotent billing webhook records. See [the architecture and implementation sequence](docs/architecture/profiles-consent-and-billing.md). Apply migrations in filename order only after the Supabase project is active. The schema does not activate checkout by itself: a payment provider, server-side credit settlement, signed webhook verification, pricing and tax/refund policies must be configured and tested before accepting payments.
+
+Voice cloning and reference-audio use require the speaker's authorization. Provider voice IDs are optional because the current dubbing workflow uses the source recording as a reference and does not guarantee a persistent cloned voice profile. Every translation must remain previewable and revocable consent must prevent future use of that profile.
+
 ## Render deployment
 
 The repository Blueprint declares one Render Pro Docker web service hosting the API, web studio and durable dubbing worker together. Create a new Blueprint deployment from `main`, provide `SUPABASE_SECRET_KEY` and `ELEVENLABS_API_KEY`, and verify the generated service URL and health endpoint. The Supabase URL, publishable key and private bucket name are prefilled in the Blueprint. See [Render deployment instructions](docs/RENDER_FREE_DEPLOYMENT.md).
