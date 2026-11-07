@@ -557,28 +557,38 @@ app.post("/webhooks/paystack", { config: { rateLimit: { max: 120, timeWindow: "1
       const email = String(data.customer?.email || "").toLowerCase();
       const paystackPlanCode = String(data.plan?.plan_code || data.plan?.plan || "");
       if (subscriptionCode && email && paystackPlanCode) {
-        const { data: pendingPayment } = await supabaseAdmin.from("voicebridge_payments")
-          .select("user_id,plan_code,billing_interval,currency")
+        const { data: pendingPayment, error: pendingPaymentError } = await supabaseAdmin.from("voicebridge_payments")
+          .select("reference,status,user_id,plan_code,billing_interval,currency")
           .eq("payment_type", "subscription").ilike("billing_email", email)
           .eq("paystack_plan_code", paystackPlanCode).in("status", ["pending", "success"])
           .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (pendingPaymentError) throw pendingPaymentError;
         if (pendingPayment) {
-          const { error: subscriptionError } = await supabaseAdmin.from("voicebridge_subscriptions").upsert({
-            user_id: pendingPayment.user_id,
-            provider: "paystack",
-            provider_customer_id: customerCode || null,
-            provider_subscription_id: subscriptionCode,
-            plan_code: pendingPayment.plan_code,
-            status: "active",
-            currency: pendingPayment.currency,
-            billing_interval: pendingPayment.billing_interval,
-            current_period_start: data.createdAt || new Date().toISOString(),
-            current_period_end: data.next_payment_date || null,
-            cancel_at_period_end: false,
-            metadata: { paystackPlanCode, includedMinutes: paystackCatalog.plans.find(plan => plan.paystackPlanCode === paystackPlanCode)?.includedMinutes || 0 },
-            updated_at: new Date().toISOString(),
-          }, { onConflict: "provider_subscription_id" });
-          if (subscriptionError) throw subscriptionError;
+          // A subscription.create notification is not itself proof that the first
+          // invoice was paid. Verify the matching checkout before granting minutes.
+          await verifyAndFulfillPaystackPayment(pendingPayment.reference);
+          const { data: existingSubscription, error: existingSubscriptionError } = await supabaseAdmin.from("voicebridge_subscriptions")
+            .select("id").eq("provider", "paystack")
+            .eq("provider_subscription_id", subscriptionCode).maybeSingle();
+          if (existingSubscriptionError) throw existingSubscriptionError;
+          if (!existingSubscription) {
+            const { error: subscriptionError } = await supabaseAdmin.from("voicebridge_subscriptions").insert({
+              user_id: pendingPayment.user_id,
+              provider: "paystack",
+              provider_customer_id: customerCode || null,
+              provider_subscription_id: subscriptionCode,
+              plan_code: pendingPayment.plan_code,
+              status: "active",
+              currency: pendingPayment.currency,
+              billing_interval: pendingPayment.billing_interval,
+              current_period_start: data.createdAt || new Date().toISOString(),
+              current_period_end: data.next_payment_date || null,
+              cancel_at_period_end: false,
+              metadata: { paystackPlanCode, includedMinutes: paystackCatalog.plans.find(plan => plan.paystackPlanCode === paystackPlanCode)?.includedMinutes || 0 },
+              updated_at: new Date().toISOString(),
+            });
+            if (subscriptionError) throw subscriptionError;
+          }
         }
       }
     } else if (event === "subscription.not_renew" || event === "subscription.disable" || event === "invoice.payment_failed" || event === "invoice.update") {
