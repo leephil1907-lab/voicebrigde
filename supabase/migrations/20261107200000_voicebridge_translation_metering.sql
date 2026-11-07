@@ -9,7 +9,9 @@ create table if not exists public.voicebridge_credit_reservations (
   job_id uuid not null unique references public.voicebridge_jobs(id) on delete cascade,
   credits_reserved bigint not null check (credits_reserved > 0),
   duration_seconds numeric(12,3) not null check (duration_seconds > 0),
-  funding_source text not null check (funding_source in ('subscription', 'credits')),
+  funding_source text not null check (funding_source in ('subscription', 'credits', 'mixed')),
+  subscription_credits bigint not null default 0 check (subscription_credits >= 0),
+  wallet_credits bigint not null default 0 check (wallet_credits >= 0),
   plan_code text,
   period_start timestamptz,
   period_end timestamptz,
@@ -84,6 +86,9 @@ declare
   account_row public.voicebridge_credit_accounts;
   inserted_user uuid;
   reservation public.voicebridge_credit_reservations;
+  subscription_available bigint := 0;
+  subscription_charge bigint := 0;
+  wallet_charge bigint := 0;
 begin
   if p_duration_seconds is null or p_duration_seconds <= 0 or p_duration_seconds > 3600 then
     raise exception 'INVALID_AUDIO_DURATION';
@@ -115,81 +120,74 @@ begin
 
   if found then
     included_credits := coalesce(nullif(subscription_row.metadata->>'includedMinutes', '')::bigint, 0) * 60;
-    select coalesce(sum(credits_reserved), 0) into used_credits
+    select coalesce(sum(subscription_credits), 0) into used_credits
     from public.voicebridge_credit_reservations
     where user_id = p_user_id
-      and funding_source = 'subscription'
+      and subscription_credits > 0
       and status in ('reserved', 'settled')
       and period_start = subscription_row.current_period_start
       and period_end = subscription_row.current_period_end;
 
-    if included_credits - used_credits >= required_credits then
-      insert into public.voicebridge_credit_reservations(
-        user_id, job_id, credits_reserved, duration_seconds, funding_source,
-        plan_code, period_start, period_end
-      ) values (
-        p_user_id, p_job_id, required_credits, p_duration_seconds, 'subscription',
-        subscription_row.plan_code, subscription_row.current_period_start, subscription_row.current_period_end
-      ) returning * into reservation;
+    subscription_available := greatest(included_credits - used_credits, 0);
+    subscription_charge := least(required_credits, subscription_available);
+  end if;
+  wallet_charge := required_credits - subscription_charge;
 
-      update public.voicebridge_jobs set available_at = now(), updated_at = now()
-      where id = p_job_id and user_id = p_user_id and status = 'queued';
-      if not found then raise exception 'TRANSLATION_JOB_NOT_QUEUEABLE'; end if;
+  -- A one-time 60-credit (one minute) trial is granted only when a wallet is first needed.
+  if wallet_charge > 0 then
+    insert into public.voicebridge_credit_accounts(user_id, currency, available_credits, updated_at)
+    values (p_user_id, 'CRD', 60, now())
+    on conflict (user_id) do nothing
+    returning user_id into inserted_user;
+    if inserted_user is not null then
+      insert into public.voicebridge_credit_transactions(
+        user_id, amount, currency, transaction_type, reference_type,
+        reference_id, idempotency_key, description
+      ) values (
+        p_user_id, 60, 'CRD', 'grant', 'free_trial', p_user_id::text,
+        'free-trial-v1', 'One-time VoiceBridge one-minute trial allowance'
+      ) on conflict (user_id, idempotency_key) do nothing;
+    end if;
+
+    select * into account_row from public.voicebridge_credit_accounts
+      where user_id = p_user_id for update;
+    if account_row.available_credits < wallet_charge then
+      -- Return normally so a newly created trial balance persists even when
+      -- this recording is longer than the available credits.
       return jsonb_build_object(
-        'reserved', true, 'alreadyReserved', false, 'credits', required_credits,
-        'minutes', ceil(p_duration_seconds / 60.0), 'fundingSource', 'subscription',
-        'planCode', subscription_row.plan_code,
-        'subscriptionMinutesRemaining', floor((included_credits - used_credits - required_credits) / 60.0)
+        'reserved', false, 'insufficientCredits', true,
+        'creditsAvailable', account_row.available_credits,
+        'creditsRequired', wallet_charge,
+        'subscriptionCreditsAvailable', subscription_available
       );
     end if;
-  end if;
 
-  -- A one-time 60-credit (one minute) trial is granted only when the user's credit account is first created.
-  insert into public.voicebridge_credit_accounts(user_id, currency, available_credits, updated_at)
-  values (p_user_id, 'CRD', 60, now())
-  on conflict (user_id) do nothing
-  returning user_id into inserted_user;
-  if inserted_user is not null then
+    update public.voicebridge_credit_accounts
+      set available_credits = available_credits - wallet_charge,
+          currency = 'CRD', updated_at = now()
+      where user_id = p_user_id;
+
     insert into public.voicebridge_credit_transactions(
       user_id, amount, currency, transaction_type, reference_type,
       reference_id, idempotency_key, description
     ) values (
-      p_user_id, 60, 'CRD', 'grant', 'free_trial', p_user_id::text,
-      'free-trial-v1', 'One-time VoiceBridge trial allowance'
+      p_user_id, -wallet_charge, 'CRD', 'usage', 'translation_job',
+      p_job_id::text, 'translation:' || p_job_id::text,
+      'Reserved translation audio minutes'
     ) on conflict (user_id, idempotency_key) do nothing;
   end if;
 
-  select * into account_row from public.voicebridge_credit_accounts
-    where user_id = p_user_id for update;
-  if account_row.available_credits < required_credits then
-    -- Return a normal result so the one-time trial grant commits even when this
-    -- particular recording is too long for the remaining balance.
-    return jsonb_build_object(
-      'reserved', false, 'insufficientCredits', true,
-      'creditsAvailable', account_row.available_credits,
-      'creditsRequired', required_credits
-    );
-  end if;
-
-  update public.voicebridge_credit_accounts
-    set available_credits = available_credits - required_credits,
-        currency = 'CRD', updated_at = now()
-    where user_id = p_user_id;
-
-  insert into public.voicebridge_credit_transactions(
-    user_id, amount, currency, transaction_type, reference_type,
-    reference_id, idempotency_key, description
-  ) values (
-    p_user_id, -required_credits, 'CRD', 'usage', 'translation_job',
-    p_job_id::text, 'translation:' || p_job_id::text,
-    'Reserved translation audio minutes'
-  ) on conflict (user_id, idempotency_key) do nothing;
-
   insert into public.voicebridge_credit_reservations(
-    user_id, job_id, credits_reserved, duration_seconds, funding_source, plan_code
+    user_id, job_id, credits_reserved, duration_seconds, funding_source,
+    subscription_credits, wallet_credits, plan_code, period_start, period_end
   ) values (
-    p_user_id, p_job_id, required_credits, p_duration_seconds, 'credits',
-    coalesce(subscription_row.plan_code, 'free')
+    p_user_id, p_job_id, required_credits, p_duration_seconds,
+    case when subscription_charge > 0 and wallet_charge > 0 then 'mixed'
+         when subscription_charge > 0 then 'subscription' else 'credits' end,
+    subscription_charge, wallet_charge,
+    coalesce(subscription_row.plan_code, 'free'),
+    case when subscription_charge > 0 then subscription_row.current_period_start else null end,
+    case when subscription_charge > 0 then subscription_row.current_period_end else null end
   ) returning * into reservation;
 
   update public.voicebridge_jobs set available_at = now(), updated_at = now()
@@ -198,8 +196,12 @@ begin
 
   return jsonb_build_object(
     'reserved', true, 'alreadyReserved', false, 'credits', required_credits,
-    'minutes', ceil(p_duration_seconds / 60.0), 'fundingSource', 'credits',
-    'creditsRemaining', account_row.available_credits - required_credits
+    'minutes', ceil(p_duration_seconds / 60.0),
+    'fundingSource', reservation.funding_source,
+    'subscriptionCredits', subscription_charge,
+    'walletCredits', wallet_charge,
+    'creditsRemaining', case when wallet_charge > 0 then account_row.available_credits - wallet_charge else null end,
+    'subscriptionMinutesRemaining', floor((subscription_available - subscription_charge) / 60.0)
   );
 end;
 $$;
@@ -245,9 +247,9 @@ begin
       set status = 'refunded', refunded_at = now()
       where id = reservation.id;
 
-    if reservation.funding_source = 'credits' then
+    if reservation.wallet_credits > 0 then
       insert into public.voicebridge_credit_accounts(user_id, currency, available_credits, updated_at)
-      values (reservation.user_id, 'CRD', reservation.credits_reserved, now())
+      values (reservation.user_id, 'CRD', reservation.wallet_credits, now())
       on conflict (user_id) do update
         set available_credits = public.voicebridge_credit_accounts.available_credits + excluded.available_credits,
             currency = 'CRD', updated_at = now();
@@ -256,7 +258,7 @@ begin
         user_id, amount, currency, transaction_type, reference_type,
         reference_id, idempotency_key, description
       ) values (
-        reservation.user_id, reservation.credits_reserved, 'CRD', 'refund',
+        reservation.user_id, reservation.wallet_credits, 'CRD', 'refund',
         'translation_job', new.id::text, 'translation-refund:' || new.id::text,
         'Automatic refund for failed translation'
       ) on conflict (user_id, idempotency_key) do nothing;
@@ -296,7 +298,7 @@ begin
     set status = 'refunded', refunded_at = now()
     where id = reservation.id;
 
-  if reservation.funding_source = 'credits' then
+  if reservation.wallet_credits > 0 then
     insert into public.voicebridge_credit_accounts(user_id, currency, available_credits, updated_at)
     values (reservation.user_id, 'CRD', reservation.credits_reserved, now())
     on conflict (user_id) do update
