@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useRouter } from "expo-router";
 import { Alert, AppState, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { File, Paths } from "expo-file-system";
@@ -26,6 +27,7 @@ const languages = [
 ];
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [session, setSession] = useState<any>(null);
   const [authReady, setAuthReady] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
@@ -243,7 +245,7 @@ export default function HomeScreen() {
             <Text style={styles.brand}>VOICEBRIDGE</Text>
             <Text style={styles.brandSub}>YOUR VOICE. EVERY LANGUAGE.</Text>
           </View>
-          <Pressable onPress={signOut} style={styles.avatar}><Text style={styles.avatarText}>Sign out</Text></Pressable>
+          <Pressable onPress={() => router.push("/account")} style={styles.avatar}><Text style={styles.avatarText}>Account</Text></Pressable>
         </View>
         {accountSummary ? <View style={styles.accountSummary}><View><Text style={styles.accountSummaryTitle}>{String(accountSummary.planCode || "free").toUpperCase()} PLAN</Text><Text style={styles.accountSummaryCopy}>{accountSummary.translationsLast30Days || 0} translations · last 30 days</Text><Text style={styles.accountSummaryCopy}>{accountSummary.creditsAvailable || 0} credits available</Text></View><Text style={styles.accountSummaryStatus}>ACCOUNT</Text></View> : null}
 
