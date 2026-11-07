@@ -176,7 +176,7 @@ grant execute on function public.reserve_voicebridge_translation(uuid,uuid,numer
 create or replace function public.finalize_voicebridge_translation_billing()
 returns trigger
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $$
 declare
