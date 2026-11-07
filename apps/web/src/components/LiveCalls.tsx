@@ -30,11 +30,7 @@ export function LiveCalls({ client, getToken, signedIn, onSignIn, onMessage }: P
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const translatedAudioRef = useRef<HTMLAudioElement | null>(null);
   const pendingIceRef = useRef<RTCIceCandidateInit[]>([]);
-  const activeCallRef = useRef<ActiveCall | null>(null);
   const offerStartedRef = useRef(false);
-  const preferredLanguageRef = useRef(preferredLanguage);
-
-  useEffect(() => { preferredLanguageRef.current = preferredLanguage; }, [preferredLanguage]);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = params.get("call");
@@ -44,7 +40,6 @@ export function LiveCalls({ client, getToken, signedIn, onSignIn, onMessage }: P
 
   const cleanup = useCallback(() => {
     if (channelRef.current) { void client?.removeChannel(channelRef.current); channelRef.current = null; }
-    sidecarRef.current?.getSenders().forEach(sender => sender.track?.stop());
     sidecarRef.current?.close(); sidecarRef.current = null;
     peerRef.current?.getSenders().forEach(sender => sender.track?.stop());
     peerRef.current?.close(); peerRef.current = null;
@@ -141,7 +136,6 @@ export function LiveCalls({ client, getToken, signedIn, onSignIn, onMessage }: P
 
   useEffect(() => {
     if (!activeCall || !client) return;
-    activeCallRef.current = activeCall;
     let cancelled = false;
     let polling: number | undefined;
     let peer: RTCPeerConnection | null = null;
