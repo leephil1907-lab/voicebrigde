@@ -79,3 +79,14 @@ export interface AccountOverview {
   maxTranslationsPer24Hours: number;
   checkoutEnabled: boolean;
 }
+
+export interface VoiceProfile {
+  id: string;
+  display_name: string;
+  status: "pending_consent" | "active" | "revoked" | "deleted";
+  consent_version: string | null;
+  consented_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  consent: { consent_scope: "own_voice" | "authorized_third_party"; speaker_name: string | null; granted_at: string; revoked_at: string | null } | null;
+}
