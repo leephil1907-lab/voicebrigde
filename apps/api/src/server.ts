@@ -304,6 +304,11 @@ app.get("/v1/voice/translations", { preHandler: authenticate }, async (request, 
 // Account overview is read-only; payments and credit mutations remain server/webhook-only.
 app.get("/v1/account/overview", { preHandler: authenticate }, async (request, reply) => {
   const userId = request.user!.id;
+  const { error: accountInitError } = await supabaseAdmin.rpc("ensure_voicebridge_credit_account", { p_user_id: userId });
+  if (accountInitError) {
+    request.log.error({ userId, error: accountInitError }, "Could not initialize the account credit balance");
+    return reply.code(503).send({ error: "CREDIT_ACCOUNT_UNAVAILABLE", message: "Your credit balance is not available yet." });
+  }
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const [subscriptionResult, creditResult, usageResult] = await Promise.all([
     supabaseAdmin.from("voicebridge_subscriptions")
