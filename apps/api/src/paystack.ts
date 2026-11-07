@@ -15,6 +15,7 @@ const subscriptionPlanSchema = z.object({
   paystackPlanCode: z.string().min(3).max(80),
   amountMinor: z.number().int().min(10000).max(100_000_000),
   interval: z.enum(["month", "year"]),
+  includedMinutes: z.number().int().min(1).max(5000),
 });
 
 export type PaystackCreditPackage = z.infer<typeof creditPackageSchema>;
