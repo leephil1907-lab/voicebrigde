@@ -19,6 +19,7 @@ import { canonicalAudioMime, probeAudioDuration } from "./audio.js";
 import { createHash, randomUUID } from "node:crypto";
 import { parsePaystackCatalog, paystackRequest, verifyPaystackWebhookSignature, type PaystackCreditPackage, type PaystackSubscriptionPlan } from "./paystack.js";
 import { supabaseAdmin, supabasePublic, audioBucket, type AuthenticatedUser } from "./supabase.js";
+import { registerLiveCallRoutes } from "./live-calls.js";
 
 const env = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -31,6 +32,7 @@ const env = z.object({
   SUPABASE_SECRET_KEY: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   ELEVENLABS_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
   MAX_AUDIO_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
   MAX_AUDIO_SECONDS: z.coerce.number().int().positive().max(3600).default(120),
   MAX_TRANSLATIONS_PER_USER_PER_DAY: z.coerce.number().int().positive().max(100).default(100),
@@ -78,7 +80,7 @@ await app.register(helmet, {
       fontSrc: ["'self'", "data:"],
       imgSrc: ["'self'", "data:", "blob:"],
       mediaSrc: ["'self'", "blob:", supabaseOrigin],
-      connectSrc: ["'self'", supabaseOrigin, supabaseRealtime],
+      connectSrc: ["'self'", supabaseOrigin, supabaseRealtime, "https://api.openai.com"],
       objectSrc: ["'none'"],
       baseUri: ["'self'"],
       frameAncestors: ["'self'"],
@@ -124,6 +126,10 @@ if (env.PERSONAL_WHATSAPP_PILOT_ENABLED === "true") {
   const vault = new EncryptedAuthStore(new SupabaseAuthRecordStore(supabaseAdmin), policy.ownerUserId, env.PERSONAL_WHATSAPP_SESSION_KEY);
   registerPairingRoutes(app, {policy, pairing:new LinkedDevicePairing(policy,vault), store:new SupabaseSendStore(supabaseAdmin,audioBucket), fingerprintKey:Buffer.from(env.PERSONAL_WHATSAPP_SESSION_KEY,"base64"), authenticate});
 }
+
+// In-app two-party calls use WebRTC for media, Supabase Realtime for private signaling,
+// and short-lived OpenAI Realtime Translation client secrets for each listening language.
+registerLiveCallRoutes(app, { supabaseAdmin, authenticate, openAiApiKey: env.OPENAI_API_KEY });
 
 async function readUpload(part: MultipartFile) {
   const chunks: Buffer[] = [];
