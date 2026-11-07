@@ -36,3 +36,7 @@ Prices, credit conversion, free-tier allowance, refund policy, tax handling and 
 ## Voice identity and messaging limits
 
 A reference recording can guide voice-preserving dubbing, but identity, accent, emotion and timing are provider-dependent and must be previewed. Voice profiles require the speaker's authorization and a revocation path. WhatsApp share-sheet delivery is user-confirmed file sharing; a native voice-note bubble cannot be guaranteed by the browser share API. Any future direct messaging delivery must use an approved, documented platform integration and explicit recipient confirmation.
+
+## Consent evidence
+
+The API owns the canonical consent statement and version. Web and mobile display that exact statement before a profile is created; the API hashes the canonical text with SHA-256 and stores only the hash/version plus scope, speaker label and timestamps. Revocation is an atomic server-only operation that marks the profile and its consent evidence revoked. A saved permission record does not itself create a permanent voice clone or replace the per-translation consent confirmation.
