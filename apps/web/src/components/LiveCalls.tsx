@@ -6,7 +6,11 @@ import { apiRequest } from "../lib/api";
 const LANGUAGES = [
   ["en","English"],["es","Spanish"],["fr","French"],["pt","Portuguese"],["de","German"],["it","Italian"],
   ["ar","Arabic"],["zh","Chinese"],["ja","Japanese"],["ko","Korean"],["ha","Hausa"],["yo","Yoruba"],
-  ["sw","Swahili"],["hi","Hindi"],["nl","Dutch"],["ru","Russian"],["tr","Turkish"],["ur","Urdu"],
+  ["sw","Swahili"],["hi","Hindi"],["nl","Dutch"],["ru","Russian"],["tr","Turkish"],["ur","Urdu"],["id","Indonesian"],["vi","Vietnamese"],
+] as const;
+const OUTPUT_LANGUAGES = [
+  ["en","English"],["es","Spanish"],["pt","Portuguese"],["fr","French"],["ja","Japanese"],["ru","Russian"],
+  ["zh","Chinese"],["de","German"],["ko","Korean"],["hi","Hindi"],["id","Indonesian"],["vi","Vietnamese"],["it","Italian"],
 ] as const;
 
 type ActiveCall = { id: string; role: "host" | "guest"; inviteToken?: string };
@@ -238,9 +242,9 @@ export function LiveCalls({ client, getToken, signedIn, onSignIn, onMessage }: P
     window.history.replaceState({}, "", url.pathname + url.search + url.hash);
   };
 
-  const languageSelect = (value: string, onChange: (value: string) => void) => (
+  const languageSelect = (value: string, onChange: (value: string) => void, output = false) => (
     <select value={value} onChange={event => onChange(event.target.value)}>
-      {LANGUAGES.map(([code, name]) => <option value={code} key={code}>{name}</option>)}
+      {(output ? OUTPUT_LANGUAGES : LANGUAGES).map(([code, name]) => <option value={code} key={code}>{name}</option>)}
     </select>
   );
 
@@ -256,7 +260,7 @@ export function LiveCalls({ client, getToken, signedIn, onSignIn, onMessage }: P
       {captions && <div className="live-captions"><span>LIVE TRANSLATION</span><p>{captions}</p></div>}
       <button className="button-primary live-end-button" onClick={() => void endCall()}><PhoneOff size={17} /> End call</button>
     </section> : <div className="live-call-grid">
-      <section className="work-card live-call-card"><div className="section-heading"><span className="step-icon"><PhoneCall size={19} /></span><div><span className="section-kicker">START A CALL</span><h2>Create an invitation</h2></div></div><p className="card-description">Choose the language you speak and the language you want to hear from the other person.</p><label>Your spoken language{languageSelect(spokenLanguage,setSpokenLanguage)}</label><label>Language you want to hear{languageSelect(preferredLanguage,setPreferredLanguage)}</label><button className="button-primary" onClick={() => void createCall()} disabled={busy}>{busy ? <LoaderCircle size={16} className="spin" /> : <PhoneCall size={16} />} Create live call <ArrowRight size={16} /></button></section>
+      <section className="work-card live-call-card"><div className="section-heading"><span className="step-icon"><PhoneCall size={19} /></span><div><span className="section-kicker">START A CALL</span><h2>Create an invitation</h2></div></div><p className="card-description">Choose the language you speak and the language you want to hear from the other person.</p><label>Your spoken language{languageSelect(spokenLanguage,setSpokenLanguage)}</label><label>Language you want to hear{languageSelect(preferredLanguage,setPreferredLanguage,true)}</label><button className="button-primary" onClick={() => void createCall()} disabled={busy}>{busy ? <LoaderCircle size={16} className="spin" /> : <PhoneCall size={16} />} Create live call <ArrowRight size={16} /></button></section>
       <section className="work-card live-call-card"><div className="section-heading"><span className="step-icon"><Radio size={19} /></span><div><span className="section-kicker">JOIN A CALL</span><h2>Use an invitation</h2></div></div><p className="card-description">Open the link shared by the other person. The call code and secure invitation are filled in automatically.</p><label>Call ID<input value={callId} onChange={event => setCallId(event.target.value)} placeholder="Call ID from invitation" /></label><label>Invitation token<input value={inviteToken} onChange={event => setInviteToken(event.target.value)} placeholder="Secure invitation token" /></label><label>Your spoken language{languageSelect(spokenLanguage,setSpokenLanguage)}</label><label>Language you want to hear{languageSelect(preferredLanguage,setPreferredLanguage)}</label><button className="button-primary" onClick={() => void joinCall()} disabled={busy}>{busy ? <LoaderCircle size={16} className="spin" /> : <PhoneCall size={16} />} Join live call <ArrowRight size={16} /></button></section>
     </div>}
     {error && <p className="inline-alert error" role="alert">{error}</p>}
