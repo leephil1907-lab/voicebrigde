@@ -90,3 +90,26 @@ export interface VoiceProfile {
   created_at: string;
   consent: { consent_scope: "own_voice" | "authorized_third_party"; speaker_name: string | null; granted_at: string; revoked_at: string | null } | null;
 }
+
+export interface BillingCreditPackage {
+  code: string;
+  name: string;
+  description: string;
+  amountMinor: number;
+  credits: number;
+}
+export interface BillingSubscriptionPlan {
+  code: "creator" | "pro" | "business" | "enterprise";
+  name: string;
+  description: string;
+  paystackPlanCode: string;
+  amountMinor: number;
+  interval: "month" | "year";
+}
+export interface BillingCatalog {
+  provider: "paystack";
+  currency: "NGN";
+  enabled: boolean;
+  creditPackages: BillingCreditPackage[];
+  subscriptionPlans: BillingSubscriptionPlan[];
+}
