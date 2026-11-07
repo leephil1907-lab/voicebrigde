@@ -29,7 +29,7 @@ Keep source audio tracks separate. Do not mix both speakers before translation. 
 - Captions: consume translation/source transcript events from the `oai-events` data channel; do not persist transcripts by default.
 - Call lifecycle: API-created invitation token is random, stored only as a SHA-256 hash, expires after 15 minutes, and is single-use. Call and participant metadata is retained in Postgres; audio is not recorded.
 
-The current API implements authenticated create/join/read/end routes and issues a short-lived translation client secret only to an active participant after both seats are occupied. The web call screen and peer connection orchestration are the next client-side integration step.
+The API implements authenticated create/join/read/end routes and issues a short-lived translation client secret only to an active participant after both seats are occupied. The web app now includes a Live calls screen, invitation links, private Realtime signaling, browser WebRTC audio, and one translation sidecar per listener. This first browser media path is a two-person implementation; TURN/SFU hardening and real-device testing remain release gates.
 
 ## WhatsApp Business Calling
 
@@ -88,6 +88,6 @@ Never place any of these in `VITE_*`, Expo public config, or browser code.
 - Private Realtime signaling access policies: applied.
 - Authenticated in-app call lifecycle API: committed.
 - Short-lived OpenAI translation session issuance: committed; requires `OPENAI_API_KEY`.
-- In-app WebRTC call UI/media orchestration: pending.
+- In-app WebRTC call UI/media orchestration: committed; requires build verification, API key, TURN/SFU production hardening, and two-device testing.
 - WhatsApp Meta webhook + LiveKit media bridge: pending provider credentials and implementation.
 - Live-call usage metering: pending.
