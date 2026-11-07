@@ -450,7 +450,27 @@ app.post("/webhooks/paystack", { config: { rateLimit: { max: 120, timeWindow: "1
   try {
     if (event === "charge.success" && typeof data.reference === "string") {
       // A webhook alone never grants value: independently verify the transaction with Paystack.
-      await verifyAndFulfillPaystackPayment(data.reference);
+      const { data: knownPayment } = await supabaseAdmin.from("voicebridge_payments")
+        .select("reference").eq("reference", data.reference).maybeSingle();
+      if (knownPayment) {
+        await verifyAndFulfillPaystackPayment(data.reference);
+      } else {
+        // Subsequent recurring subscription invoices have new references and no pending checkout row.
+        const verified = await paystackRequest<{ status: string; reference: string; amount: number; currency: string }>(
+          env.PAYSTACK_SECRET_KEY!, "/transaction/verify/" + encodeURIComponent(data.reference),
+        );
+        if (verified.status !== "success" || verified.reference !== data.reference || verified.currency !== env.PAYSTACK_CURRENCY) {
+          throw new Error("Recurring Paystack charge could not be independently verified.");
+        }
+        const subscriptionCode = String(data.subscription?.subscription_code || data.subscription_code || "");
+        if (subscriptionCode) {
+          await supabaseAdmin.from("voicebridge_subscriptions").update({
+            status: "active",
+            updated_at: new Date().toISOString(),
+            ...(data.next_payment_date ? { current_period_end: data.next_payment_date } : {}),
+          }).eq("provider", "paystack").eq("provider_subscription_id", subscriptionCode);
+        }
+      }
     } else if (event === "subscription.create") {
       const subscriptionCode = String(data.subscription_code || data.subscription?.subscription_code || "");
       const customerCode = String(data.customer?.customer_code || "");
