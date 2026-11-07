@@ -20,7 +20,7 @@ const supportedOutputLanguages = new Set([
 
 const languagePair = z.object({
   spokenLanguage: z.string().min(2).max(8).refine((value) => supportedInputLanguages.has(value), "Choose a supported spoken language."),
-  preferredLanguage: z.string().min(2).max(8).refine((value) => supportedOutputLanguages.has(value), "Choose a supported listening language.");
+  preferredLanguage: z.string().min(2).max(8).refine((value) => supportedOutputLanguages.has(value), "Choose a supported listening language."),
 });
 
 function userId(request: FastifyRequest): string {
