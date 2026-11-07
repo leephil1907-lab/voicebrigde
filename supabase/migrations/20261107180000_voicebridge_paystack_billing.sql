@@ -82,7 +82,8 @@ begin
     insert into public.voicebridge_credit_accounts(user_id, currency, available_credits, updated_at)
     values (payment_row.user_id, 'CRD', payment_row.credits_granted, now())
     on conflict (user_id) do update
-      set available_credits = public.voicebridge_credit_accounts.available_credits + excluded.available_credits,
+      set currency = 'CRD',
+          available_credits = public.voicebridge_credit_accounts.available_credits + excluded.available_credits,
           updated_at = now();
 
     insert into public.voicebridge_credit_transactions(
