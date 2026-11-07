@@ -64,6 +64,7 @@ export function registerLiveCallRoutes(app: FastifyInstance, deps: Dependencies)
       seat: 1,
       spoken_language: parsed.data.spokenLanguage,
       preferred_language: parsed.data.preferredLanguage,
+      joined_at: new Date().toISOString(),
     });
     if (participantError) {
       await supabaseAdmin.from("voicebridge_live_calls").delete().eq("id", call.id);
@@ -166,7 +167,7 @@ export function registerLiveCallRoutes(app: FastifyInstance, deps: Dependencies)
                 transcription: { model: "gpt-realtime-whisper" },
                 noise_reduction: { type: "near_field" },
               },
-              output: { language: mine.spoken_language },
+              output: { language: mine.preferred_language },
             },
           },
         }),
@@ -178,7 +179,7 @@ export function registerLiveCallRoutes(app: FastifyInstance, deps: Dependencies)
       }
       const clientSecret = typeof payload.client_secret === "string" ? payload.client_secret : payload.client_secret?.value;
       if (!clientSecret) return fail(reply, 502, "LIVE_TRANSLATION_SESSION_INVALID", "The translation provider returned an invalid session.");
-      return { clientSecret, expiresAt: typeof payload.client_secret === "object" ? payload.client_secret.expires_at : undefined, targetLanguage: mine.spoken_language };
+      return { clientSecret, expiresAt: typeof payload.client_secret === "object" ? payload.client_secret.expires_at : undefined, targetLanguage: mine.preferred_language };
     } catch (error) {
       request.log.error({ error }, "OpenAI live translation request failed");
       return fail(reply, 502, "LIVE_TRANSLATION_SESSION_FAILED", "The translation session could not be prepared.");
