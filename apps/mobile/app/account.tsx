@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import type { Session } from "@supabase/supabase-js";
@@ -16,6 +16,13 @@ type Overview = {
   maxTranslationsPer24Hours: number;
   currentPeriodEnd: string | null;
 };
+type BillingCatalog = {
+  provider: "paystack";
+  currency: "NGN";
+  enabled: boolean;
+  creditPackages: { code: string; name: string; description: string; amountMinor: number; credits: number }[];
+  subscriptionPlans: { code: string; name: string; description: string; paystackPlanCode: string; amountMinor: number; interval: "month" | "year" }[];
+};
 type VoiceProfile = {
   id: string;
   display_name: string;
@@ -27,6 +34,8 @@ export default function AccountScreen() {
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [billingCatalog, setBillingCatalog] = useState<BillingCatalog | null>(null);
+  const [billingBusyCode, setBillingBusyCode] = useState("");
   const [profiles, setProfiles] = useState<VoiceProfile[]>([]);
   const [displayName, setDisplayName] = useState("");
   const [scope, setScope] = useState<"own_voice" | "authorized_third_party">("own_voice");
@@ -58,15 +67,17 @@ export default function AccountScreen() {
   }, []);
 
   const refresh = useCallback(async () => {
-    if (!session) { setOverview(null); setProfiles([]); return; }
+    if (!session) { setOverview(null); setProfiles([]); setBillingCatalog(null); return; }
     setBusy(true); setError("");
     try {
-      const [summary, voiceList] = await Promise.all([
+      const [summary, voiceList, catalog] = await Promise.all([
         request("/v1/account/overview"),
         request("/v1/account/voice-profiles"),
+        request("/v1/billing/catalog"),
       ]);
       setOverview(summary);
       setProfiles(voiceList.items || []);
+      setBillingCatalog(catalog);
     } catch (e) { setError(e instanceof Error ? e.message : "Could not load account information."); }
     finally { setBusy(false); }
   }, [session, request]);
@@ -101,6 +112,22 @@ export default function AccountScreen() {
     ]);
   }
 
+  async function startCheckout(type: "credit_topup" | "subscription", productCode: string) {
+    const busyCode = type + ":" + productCode;
+    setBillingBusyCode(busyCode); setError("");
+    try {
+      const result = await request("/v1/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, productCode }),
+      });
+      await Linking.openURL(result.authorizationUrl);
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not open Paystack checkout."); }
+    finally { setBillingBusyCode(""); }
+  }
+
+  const formatNGN = (amountMinor: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(amountMinor / 100);
+
   async function signOut() {
     if (!supabase) return;
     const { error: signOutError } = await supabase.auth.signOut();
@@ -125,8 +152,19 @@ export default function AccountScreen() {
           <View style={styles.metricRow}><Text style={styles.metricLabel}>Translations · last 30 days</Text><Text style={styles.metricValue}>{overview.translationsLast30Days}</Text></View>
           <View style={styles.metricRow}><Text style={styles.metricLabel}>Rolling 24-hour limit</Text><Text style={styles.metricValue}>{overview.maxTranslationsPer24Hours}</Text></View>
           <View style={styles.metricRow}><Text style={styles.metricLabel}>Available credits</Text><Text style={styles.metricValue}>{overview.creditsAvailable}</Text></View>
-          <Text style={styles.note}>Checkout is not enabled yet. No payment method will be charged.</Text>
+          <Text style={styles.note}>Payments are processed securely by Paystack. Credits are added only after server verification.</Text>
         </> : <Text style={styles.copy}>{busy ? "Loading…" : "Usage information is not available."}</Text>}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.kicker}>PAYSTACK CHECKOUT · NGN</Text>
+        <Text style={styles.cardTitle}>Credits & subscriptions</Text>
+        {!billingCatalog?.enabled ? <Text style={styles.copy}>Paystack checkout will appear here after the server test keys and prices are configured.</Text> : <>
+          <Text style={styles.label}>Credit top-ups</Text>
+          {billingCatalog.creditPackages.length ? billingCatalog.creditPackages.map(item => <View key={item.code} style={styles.billingRow}><View style={{ flex: 1 }}><Text style={styles.profileName}>{item.name}</Text><Text style={styles.profileMeta}>{item.credits.toLocaleString("en-NG")} credits · {formatNGN(item.amountMinor)}</Text>{item.description ? <Text style={styles.profileMeta}>{item.description}</Text> : null}</View><Pressable disabled={Boolean(billingBusyCode)} onPress={() => void startCheckout("credit_topup", item.code)} style={styles.buyButton}><Text style={styles.buyButtonText}>{billingBusyCode === "credit_topup:"+item.code ? "…" : "Buy"}</Text></Pressable></View>) : <Text style={styles.copy}>No credit packages are configured yet.</Text>}
+          <Text style={styles.label}>Recurring plans</Text>
+          {billingCatalog.subscriptionPlans.length ? billingCatalog.subscriptionPlans.map(item => <View key={item.code} style={styles.billingRow}><View style={{ flex: 1 }}><Text style={styles.profileName}>{item.name}</Text><Text style={styles.profileMeta}>{formatNGN(item.amountMinor)} / {item.interval === "month" ? "month" : "year"}</Text>{item.description ? <Text style={styles.profileMeta}>{item.description}</Text> : null}</View><Pressable disabled={Boolean(billingBusyCode)} onPress={() => void startCheckout("subscription", item.code)} style={styles.buyButton}><Text style={styles.buyButtonText}>{billingBusyCode === "subscription:"+item.code ? "…" : "Subscribe"}</Text></Pressable></View>) : <Text style={styles.copy}>Subscription plans will appear after Paystack plan codes are configured.</Text>}
+        </>}
       </View>
 
       <View style={styles.card}>
@@ -187,6 +225,9 @@ const styles = StyleSheet.create({
   primaryText: { color: "#172014", fontSize: 11, fontWeight: "900" },
   disabled: { opacity: 0.45 },
   profileRow: { flexDirection: "row", alignItems: "center", borderTopWidth: 1, borderTopColor: "#2B382D", paddingVertical: 12, marginTop: 10 },
+  billingRow: { flexDirection: "row", alignItems: "center", gap: 10, borderTopWidth: 1, borderTopColor: "#2B382D", paddingVertical: 12, marginTop: 8 },
+  buyButton: { backgroundColor: "#D6F269", borderRadius: 9, paddingHorizontal: 13, paddingVertical: 10 },
+  buyButtonText: { color: "#172014", fontSize: 9, fontWeight: "900" },
   profileName: { color: "#E6ECE2", fontSize: 11, fontWeight: "800" },
   profileMeta: { color: "#849181", fontSize: 9, marginTop: 4 },
   revoke: { color: "#F0B2A7", fontSize: 9, fontWeight: "900", letterSpacing: 1 },
