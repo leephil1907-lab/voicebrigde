@@ -106,15 +106,58 @@ VoiceBridge is configured for one always-on Render Pro Docker web service runnin
 
 The root `render.yaml` defines one paid Pro web service running the API, website and dubbing worker together. See [`docs/RENDER_PRO_QUICKSTART.md`](docs/RENDER_PRO_QUICKSTART.md) for costs, required server-side settings, Supabase email configuration and launch verification. A Pro workspace subscription does not automatically cover the compute charges of additional services.
 
-## Paystack billing setup
+## Paystack pricing and translation credits
 
-VoiceBridge uses Paystack for NGN checkout. All prices and credit entitlements are defined on the server through `PAYSTACK_CREDIT_PACKAGES_JSON` and `PAYSTACK_SUBSCRIPTION_PLANS_JSON`; the client submits only a product code. Amounts are configured in kobo. Never place Paystack secret keys in the web or mobile bundle.
+VoiceBridge uses Paystack for NGN checkout. All prices and entitlements are server-owned through `PAYSTACK_CREDIT_PACKAGES_JSON` and `PAYSTACK_SUBSCRIPTION_PLANS_JSON`; clients submit only a product code. Amounts are in kobo. Never place Paystack secret keys in the web or mobile bundle.
 
-1. Start with Paystack test-mode keys and set `PAYSTACK_SECRET_KEY` and the webhook signing secret `PAYSTACK_WEBHOOK_SECRET` on Render.
-2. Add the webhook URL `https://voicebridge-81xs.onrender.com/webhooks/paystack` in the Paystack test dashboard.
-3. Configure one or more credit packages, for example `[{"code":"starter","name":"Starter","description":"One-time credit pack","amountMinor":500000,"credits":1000}]`.
-4. Create recurring plans in Paystack using the same currency and intervals, then configure their exact plan codes and prices, for example `[{"code":"creator","name":"Creator","description":"Monthly creator plan","paystackPlanCode":"PLN_xxx","amountMinor":2500000,"interval":"month"}]`.
-5. Test checkout, callback verification, duplicate webhook delivery, subscription creation/cancellation, and failed invoices before switching to live keys.
+**Credit unit:** 60 credits = one billable minute. Audio is billed in whole-minute blocks, rounded up, for each target language. A two-minute recording translated into two target languages consumes four minutes (240 credits). A new account receives a one-time 60-credit trial allowance. Purchased credits can be used alongside subscription allowances. Unused subscription minutes expire at the end of the billing period; purchased wallet credits remain separate from that monthly allowance.
+
+Recommended one-time credit packages:
+
+| Package code | Display name | Price | Credits | Translation time |
+|---|---|---:|---:|---:|
+| `starter` | Starter | ₦7,500 | 60 | 1 minute |
+| `growth` | Growth | ₦35,000 | 300 | 5 minutes |
+| `power` | Power | ₦65,000 | 600 | 10 minutes |
+
+Recommended monthly subscriptions:
+
+| Plan code | Display name | Price | Included time |
+|---|---|---:|---:|
+| `creator` | Creator | ₦19,900/month | 3 minutes |
+| `pro` | Pro | ₦49,900/month | 8 minutes |
+| `business` | Studio | ₦99,900/month | 18 minutes |
+
+These are launch prices, not a guarantee of margin. Recalculate against the actual provider invoice, FX rate, Paystack fees and support costs before promotions or discounts.
+
+Set the credit catalog on Render to:
+
+```json
+[
+  {"code":"starter","name":"Starter","description":"1 translation minute · one-time top-up","amountMinor":750000,"credits":60},
+  {"code":"growth","name":"Growth","description":"5 translation minutes · one-time top-up","amountMinor":3500000,"credits":300},
+  {"code":"power","name":"Power","description":"10 translation minutes · one-time top-up","amountMinor":6500000,"credits":600}
+]
+```
+
+Create three monthly plans in the Paystack dashboard first, then set the subscription catalog on Render. Replace each `PLN_...` value with the exact plan code from the same Paystack environment as the secret key:
+
+```json
+[
+  {"code":"creator","name":"Creator","description":"3 translation minutes each month","paystackPlanCode":"PLN_CREATOR","amountMinor":1990000,"interval":"month","includedMinutes":3},
+  {"code":"pro","name":"Pro","description":"8 translation minutes each month","paystackPlanCode":"PLN_PRO","amountMinor":4990000,"interval":"month","includedMinutes":8},
+  {"code":"business","name":"Studio","description":"18 translation minutes each month","paystackPlanCode":"PLN_STUDIO","amountMinor":9990000,"interval":"month","includedMinutes":18}
+]
+```
+
+**Metering and refunds:** the API reserves credits atomically before a job becomes visible to the worker. Subscription minutes are used first; purchased credits cover additional usage. Completion settles the reservation. A terminal job failure automatically refunds wallet credits or releases the subscription allowance. Duplicate reservation attempts are idempotent. Paystack-issued customer refunds and disputes are not yet automatically reconciled against consumed credits; keep those under manual review until that workflow is added. The database records completed usage and owner-scoped credit reservations.
+
+### Paystack environment setup
+
+1. Add `PAYSTACK_SECRET_KEY`, `PAYSTACK_WEBHOOK_SECRET`, `PAYSTACK_CURRENCY=NGN`, and `PAYSTACK_APP_URL=https://voicebridge-81xs.onrender.com` to the Render service environment.
+2. Add the two JSON catalogs above as `PAYSTACK_CREDIT_PACKAGES_JSON` and `PAYSTACK_SUBSCRIPTION_PLANS_JSON`.
+3. Register the webhook URL `https://voicebridge-81xs.onrender.com/webhooks/paystack` in the matching Paystack test or live dashboard.
+4. Test checkout, transaction verification, duplicate webhook delivery, subscription creation/renewal/cancellation, and failed-job refunds before accepting live customer payments.
 
 The API verifies every successful charge directly with Paystack and compares the reference, amount and currency with the server-created pending payment before granting credits. Webhook signatures are checked against the raw request body; fulfillment is idempotent in Postgres. The callback never grants value by itself.
 

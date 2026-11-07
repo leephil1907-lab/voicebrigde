@@ -75,8 +75,11 @@ export interface AccountOverview {
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
   creditsAvailable: number;
+  subscriptionMinutesIncluded: number;
+  subscriptionMinutesUsed: number;
+  subscriptionMinutesRemaining: number;
   translationsLast30Days: number;
-  maxTranslationsPer24Hours: number;
+  maxTranslationsPerHour: number;
   checkoutEnabled: boolean;
 }
 
@@ -105,6 +108,7 @@ export interface BillingSubscriptionPlan {
   paystackPlanCode: string;
   amountMinor: number;
   interval: "month" | "year";
+  includedMinutes: number;
 }
 export interface BillingCatalog {
   provider: "paystack";

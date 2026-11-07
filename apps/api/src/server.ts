@@ -33,7 +33,7 @@ const env = z.object({
   ELEVENLABS_API_KEY: z.string().optional(),
   MAX_AUDIO_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
   MAX_AUDIO_SECONDS: z.coerce.number().int().positive().max(3600).default(120),
-  MAX_TRANSLATIONS_PER_USER_PER_DAY: z.coerce.number().int().positive().max(100).default(3),
+  MAX_TRANSLATIONS_PER_USER_PER_DAY: z.coerce.number().int().positive().max(100).default(100),
   WEB_DIST_PATH: z.string().optional(),
   PERSONAL_WHATSAPP_PILOT_ENABLED: z.enum(["true", "false"]).default("false"),
   PERSONAL_WHATSAPP_OWNER_ID: z.string().uuid().optional(),
@@ -193,6 +193,8 @@ app.post("/v1/voice/translate", {
   let voiceConsent = false;
   let upload: { buffer: Buffer; filename: string; mimetype: string } | undefined;
   let inputPath: string | undefined;
+  let createdJobId: string | undefined;
+  let audioDurationSeconds = 0;
   try {
     for await (const part of request.parts()) {
       if (part.type === "file") {
@@ -205,7 +207,7 @@ app.post("/v1/voice/translate", {
     }
     if (!upload) return reply.code(400).send({ error: "AUDIO_REQUIRED", message: "Record or select an audio message first." });
     if (!voiceConsent) return reply.code(400).send({ error: "VOICE_CONSENT_REQUIRED", message: "Confirm this is your voice or that you have the speaker's permission before translating." });
-    try { if (await probeAudioDuration(upload.buffer, upload.mimetype) > env.MAX_AUDIO_SECONDS + 0.5) return reply.code(400).send({ message: `Audio must be at most ${env.MAX_AUDIO_SECONDS} seconds.` }); }
+    try { audioDurationSeconds = await probeAudioDuration(upload.buffer, upload.mimetype); if (audioDurationSeconds > env.MAX_AUDIO_SECONDS + 0.5) return reply.code(400).send({ message: `Audio must be at most ${env.MAX_AUDIO_SECONDS} seconds.` }); }
     catch { return reply.code(400).send({ message: "Could not inspect the audio. Check its format and ensure ffprobe is installed on the server." }); }
     if (!languages.some((x) => x.code === targetLanguage)) return reply.code(400).send({ error: "UNSUPPORTED_LANGUAGE", message: "Choose an enabled target language." });
     if (sourceLanguage !== "auto" && !languages.some((x) => x.code === sourceLanguage)) return reply.code(400).send({ error: "INVALID_SOURCE_LANGUAGE", message: "Choose a supported source language or auto-detection." });
@@ -214,30 +216,57 @@ app.post("/v1/voice/translate", {
     const { count, error: quotaError } = await supabaseAdmin.from("voicebridge_jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", since);
     if (quotaError) throw quotaError;
     if ((count || 0) >= 20) return reply.code(429).send({ error: "USER_HOURLY_QUOTA_EXCEEDED", message: "The current limit is 20 translations per hour." });
-    const daySince = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const { count: dailyCount, error: dailyQuotaError } = await supabaseAdmin.from("voicebridge_jobs")
-      .select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", daySince);
-    if (dailyQuotaError) throw dailyQuotaError;
-    if ((dailyCount || 0) >= env.MAX_TRANSLATIONS_PER_USER_PER_DAY) {
-      return reply.code(429).send({
-        error: "DAILY_TRANSLATION_LIMIT",
-        message: `You've reached the current limit of ${env.MAX_TRANSLATIONS_PER_USER_PER_DAY} translations in 24 hours. Your allowance resets as earlier requests pass the 24-hour window.`,
-      });
-    }
-
     const id = randomUUID();
     inputPath = `${user.id}/${id}/source.${extensionFor(upload.mimetype)}`;
     const { error: storageError } = await supabaseAdmin.storage.from(audioBucket).upload(inputPath, new Blob([new Uint8Array(upload.buffer)], { type: upload.mimetype }), { contentType: upload.mimetype, upsert: false });
     if (storageError) throw storageError;
     const { data: job, error: insertError } = await supabaseAdmin.from("voicebridge_jobs").insert({
-      id, user_id: user.id, status: "queued", stage: "queued",
+      id, user_id: user.id, status: "queued", stage: "billing_pending",
       source_language: sourceLanguage === "auto" ? null : sourceLanguage,
       target_language: targetLanguage, input_path: inputPath,
+      // Keep the job invisible to workers until its credit reservation succeeds.
+      available_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
       voice_consented_at: new Date().toISOString(),
     }).select("id,status,target_language,created_at").single();
     if (insertError) throw insertError;
-    return reply.code(202).send({ id: job.id, status: job.status, targetLanguage: job.target_language, createdAt: job.created_at });
+    createdJobId = job.id;
+    const { data: reservation, error: reservationError } = await supabaseAdmin.rpc("reserve_voicebridge_translation", {
+      p_user_id: user.id,
+      p_job_id: job.id,
+      p_duration_seconds: audioDurationSeconds,
+    });
+    if (reservationError) {
+      if (String(reservationError.message || "").includes("INSUFFICIENT_CREDITS")) {
+        await supabaseAdmin.from("voicebridge_jobs").delete().eq("id", job.id).eq("user_id", user.id);
+        createdJobId = undefined;
+        await supabaseAdmin.storage.from(audioBucket).remove([inputPath]);
+        inputPath = undefined;
+        return reply.code(402).send({
+          error: "INSUFFICIENT_CREDITS",
+          message: "You need more translation credits. Choose a credit top-up or an active subscription to continue.",
+        });
+      }
+      throw reservationError;
+    }
+    if (reservation?.insufficientCredits) {
+      await supabaseAdmin.from("voicebridge_jobs").delete().eq("id", job.id).eq("user_id", user.id);
+      createdJobId = undefined;
+      await supabaseAdmin.storage.from(audioBucket).remove([inputPath]);
+      inputPath = undefined;
+      return reply.code(402).send({
+        error: "INSUFFICIENT_CREDITS",
+        message: "You need more translation credits. Choose a credit top-up or an active subscription to continue.",
+        creditsAvailable: reservation.creditsAvailable,
+        creditsRequired: reservation.creditsRequired,
+      });
+    }
+    return reply.code(202).send({
+      id: job.id, status: job.status, targetLanguage: job.target_language,
+      createdAt: job.created_at, creditsReserved: reservation?.credits,
+      billableMinutes: reservation?.minutes, fundingSource: reservation?.fundingSource,
+    });
   } catch (error) {
+    if (createdJobId) await supabaseAdmin.from("voicebridge_jobs").delete().eq("id", createdJobId).eq("user_id", user.id);
     if (inputPath) await supabaseAdmin.storage.from(audioBucket).remove([inputPath]);
     request.log.error({ userId: user.id, error }, "Could not enqueue translation");
     return reply.code(502).send({ error: "VOICE_TRANSLATION_QUEUE_FAILED", message: error instanceof Error ? error.message : "Could not queue voice translation." });
@@ -275,10 +304,15 @@ app.get("/v1/voice/translations", { preHandler: authenticate }, async (request, 
 // Account overview is read-only; payments and credit mutations remain server/webhook-only.
 app.get("/v1/account/overview", { preHandler: authenticate }, async (request, reply) => {
   const userId = request.user!.id;
+  const { error: accountInitError } = await supabaseAdmin.rpc("ensure_voicebridge_credit_account", { p_user_id: userId });
+  if (accountInitError) {
+    request.log.error({ userId, error: accountInitError }, "Could not initialize the account credit balance");
+    return reply.code(503).send({ error: "CREDIT_ACCOUNT_UNAVAILABLE", message: "Your credit balance is not available yet." });
+  }
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const [subscriptionResult, creditResult, usageResult] = await Promise.all([
     supabaseAdmin.from("voicebridge_subscriptions")
-      .select("plan_code,status,currency,billing_interval,current_period_end,cancel_at_period_end")
+      .select("plan_code,status,currency,billing_interval,current_period_start,current_period_end,cancel_at_period_end,metadata")
       .eq("user_id", userId).in("status", ["active", "trialing", "past_due"])
       .order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabaseAdmin.from("voicebridge_credit_accounts").select("available_credits,currency")
@@ -292,6 +326,21 @@ app.get("/v1/account/overview", { preHandler: authenticate }, async (request, re
     return reply.code(503).send({ error: "ACCOUNT_OVERVIEW_UNAVAILABLE", message: "Account usage and billing data are not available yet." });
   }
   const subscription = subscriptionResult.data;
+  let subscriptionMinutesIncluded = Number(subscription?.metadata?.includedMinutes || 0);
+  let subscriptionMinutesUsed = 0;
+  if (subscription?.current_period_start && subscription?.current_period_end && subscriptionMinutesIncluded > 0) {
+    const { data: reservations, error: reservationError } = await supabaseAdmin.from("voicebridge_credit_reservations")
+      .select("subscription_credits")
+      .eq("user_id", userId).gt("subscription_credits", 0)
+      .in("status", ["reserved", "settled"])
+      .eq("period_start", subscription.current_period_start)
+      .eq("period_end", subscription.current_period_end);
+    if (reservationError) {
+      request.log.error({ userId, error: reservationError }, "Could not load subscription usage");
+      return reply.code(503).send({ error: "SUBSCRIPTION_USAGE_UNAVAILABLE", message: "Subscription usage is not available yet." });
+    }
+    subscriptionMinutesUsed = (reservations || []).reduce((sum, item) => sum + Number(item.subscription_credits || 0), 0) / 60;
+  }
   return {
     planCode: subscription?.plan_code || "free",
     subscriptionStatus: subscription?.status || "free",
@@ -300,8 +349,11 @@ app.get("/v1/account/overview", { preHandler: authenticate }, async (request, re
     currentPeriodEnd: subscription?.current_period_end || null,
     cancelAtPeriodEnd: subscription?.cancel_at_period_end || false,
     creditsAvailable: creditResult.data?.available_credits || 0,
+    subscriptionMinutesIncluded,
+    subscriptionMinutesUsed,
+    subscriptionMinutesRemaining: Math.max(0, subscriptionMinutesIncluded - subscriptionMinutesUsed),
     translationsLast30Days: usageResult.count || 0,
-    maxTranslationsPer24Hours: env.MAX_TRANSLATIONS_PER_USER_PER_DAY,
+    maxTranslationsPerHour: 20,
     checkoutEnabled: Boolean(env.PAYSTACK_SECRET_KEY),
     billingProvider: "paystack",
   };
@@ -314,7 +366,7 @@ function publicBillingCatalog() {
   return {
     provider: "paystack",
     currency: env.PAYSTACK_CURRENCY,
-    enabled: Boolean(env.PAYSTACK_SECRET_KEY),
+    enabled: Boolean(env.PAYSTACK_SECRET_KEY && (paystackCatalog.credits.length || paystackCatalog.plans.length)),
     creditPackages: paystackCatalog.credits,
     subscriptionPlans: paystackCatalog.plans,
   };
@@ -435,6 +487,30 @@ app.post<{ Params: { reference: string } }>("/v1/billing/verify/:reference", { p
   }
 });
 
+async function advancePaystackSubscriptionPeriod(subscriptionCode: string, nextPaymentDate?: string | null) {
+  const { data: current, error: lookupError } = await supabaseAdmin.from("voicebridge_subscriptions")
+    .select("id,plan_code,current_period_end")
+    .eq("provider", "paystack").eq("provider_subscription_id", subscriptionCode).maybeSingle();
+  if (lookupError) throw lookupError;
+  if (!current) throw new Error("Paystack subscription record was not found for this renewal.");
+
+  const update: Record<string, unknown> = { status: "active", updated_at: new Date().toISOString() };
+  if (nextPaymentDate) {
+    const nextEnd = new Date(nextPaymentDate);
+    if (!Number.isFinite(nextEnd.getTime())) throw new Error("Paystack returned an invalid next payment date.");
+    const currentEnd = current.current_period_end ? new Date(current.current_period_end) : null;
+    // Advance only when the provider's next period end changes. Duplicate
+    // charge.success and invoice.update webhooks must not reset used minutes.
+    if (!currentEnd || currentEnd.getTime() !== nextEnd.getTime()) {
+      update.current_period_start = current.current_period_end || new Date().toISOString();
+      update.current_period_end = nextEnd.toISOString();
+    }
+  }
+  const { error: updateError } = await supabaseAdmin.from("voicebridge_subscriptions")
+    .update(update).eq("id", current.id);
+  if (updateError) throw updateError;
+}
+
 app.post("/webhooks/paystack", { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } }, async (request, reply) => {
   const valid = verifyPaystackWebhookSignature({
     rawBody: request.rawBody || Buffer.alloc(0),
@@ -464,11 +540,15 @@ app.post("/webhooks/paystack", { config: { rateLimit: { max: 120, timeWindow: "1
         }
         const subscriptionCode = String(data.subscription?.subscription_code || data.subscription_code || "");
         if (subscriptionCode) {
-          await supabaseAdmin.from("voicebridge_subscriptions").update({
-            status: "active",
-            updated_at: new Date().toISOString(),
-            ...(data.next_payment_date ? { current_period_end: data.next_payment_date } : {}),
-          }).eq("provider", "paystack").eq("provider_subscription_id", subscriptionCode);
+          const { data: subscriptionRow, error: subscriptionLookupError } = await supabaseAdmin.from("voicebridge_subscriptions")
+            .select("plan_code").eq("provider", "paystack")
+            .eq("provider_subscription_id", subscriptionCode).maybeSingle();
+          if (subscriptionLookupError) throw subscriptionLookupError;
+          const expectedPlan = paystackCatalog.plans.find(plan => plan.code === subscriptionRow?.plan_code);
+          if (!expectedPlan || verified.amount !== expectedPlan.amountMinor) {
+            throw new Error("Recurring Paystack charge amount does not match the configured subscription plan.");
+          }
+          await advancePaystackSubscriptionPeriod(subscriptionCode, data.next_payment_date || null);
         }
       }
     } else if (event === "subscription.create") {
@@ -477,28 +557,38 @@ app.post("/webhooks/paystack", { config: { rateLimit: { max: 120, timeWindow: "1
       const email = String(data.customer?.email || "").toLowerCase();
       const paystackPlanCode = String(data.plan?.plan_code || data.plan?.plan || "");
       if (subscriptionCode && email && paystackPlanCode) {
-        const { data: pendingPayment } = await supabaseAdmin.from("voicebridge_payments")
-          .select("user_id,plan_code,billing_interval,currency")
+        const { data: pendingPayment, error: pendingPaymentError } = await supabaseAdmin.from("voicebridge_payments")
+          .select("reference,status,user_id,plan_code,billing_interval,currency")
           .eq("payment_type", "subscription").ilike("billing_email", email)
           .eq("paystack_plan_code", paystackPlanCode).in("status", ["pending", "success"])
           .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (pendingPaymentError) throw pendingPaymentError;
         if (pendingPayment) {
-          const { error: subscriptionError } = await supabaseAdmin.from("voicebridge_subscriptions").upsert({
-            user_id: pendingPayment.user_id,
-            provider: "paystack",
-            provider_customer_id: customerCode || null,
-            provider_subscription_id: subscriptionCode,
-            plan_code: pendingPayment.plan_code,
-            status: "active",
-            currency: pendingPayment.currency,
-            billing_interval: pendingPayment.billing_interval,
-            current_period_start: data.createdAt || new Date().toISOString(),
-            current_period_end: data.next_payment_date || null,
-            cancel_at_period_end: false,
-            metadata: { paystackPlanCode },
-            updated_at: new Date().toISOString(),
-          }, { onConflict: "provider_subscription_id" });
-          if (subscriptionError) throw subscriptionError;
+          // A subscription.create notification is not itself proof that the first
+          // invoice was paid. Verify the matching checkout before granting minutes.
+          await verifyAndFulfillPaystackPayment(pendingPayment.reference);
+          const { data: existingSubscription, error: existingSubscriptionError } = await supabaseAdmin.from("voicebridge_subscriptions")
+            .select("id").eq("provider", "paystack")
+            .eq("provider_subscription_id", subscriptionCode).maybeSingle();
+          if (existingSubscriptionError) throw existingSubscriptionError;
+          if (!existingSubscription) {
+            const { error: subscriptionError } = await supabaseAdmin.from("voicebridge_subscriptions").insert({
+              user_id: pendingPayment.user_id,
+              provider: "paystack",
+              provider_customer_id: customerCode || null,
+              provider_subscription_id: subscriptionCode,
+              plan_code: pendingPayment.plan_code,
+              status: "active",
+              currency: pendingPayment.currency,
+              billing_interval: pendingPayment.billing_interval,
+              current_period_start: data.createdAt || new Date().toISOString(),
+              current_period_end: data.next_payment_date || null,
+              cancel_at_period_end: false,
+              metadata: { paystackPlanCode, includedMinutes: paystackCatalog.plans.find(plan => plan.paystackPlanCode === paystackPlanCode)?.includedMinutes || 0 },
+              updated_at: new Date().toISOString(),
+            });
+            if (subscriptionError) throw subscriptionError;
+          }
         }
       }
     } else if (event === "subscription.not_renew" || event === "subscription.disable" || event === "invoice.payment_failed" || event === "invoice.update") {
@@ -509,12 +599,12 @@ app.post("/webhooks/paystack", { config: { rateLimit: { max: 120, timeWindow: "1
         if (event === "subscription.disable") { update.status = "canceled"; update.cancel_at_period_end = false; }
         if (event === "invoice.payment_failed") update.status = "past_due";
         if (event === "invoice.update" && String(data.status || "").toLowerCase() === "success") {
-          update.status = "active";
-          if (data.next_payment_date) update.current_period_end = data.next_payment_date;
+          await advancePaystackSubscriptionPeriod(subscriptionCode, data.next_payment_date || null);
+        } else {
+          const { error: updateError } = await supabaseAdmin.from("voicebridge_subscriptions").update(update)
+            .eq("provider", "paystack").eq("provider_subscription_id", subscriptionCode);
+          if (updateError) throw updateError;
         }
-        const { error: updateError } = await supabaseAdmin.from("voicebridge_subscriptions").update(update)
-          .eq("provider", "paystack").eq("provider_subscription_id", subscriptionCode);
-        if (updateError) throw updateError;
       }
     }
     const eventKey = event + ":" + String(data.reference || data.id || data.subscription_code || data.subscription?.subscription_code || "event");
