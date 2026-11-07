@@ -16,6 +16,23 @@ const OUTPUT_LANGUAGES = [
 type ActiveCall = { id: string; role: "host" | "guest"; inviteToken?: string };
 type Props = { client: SupabaseClient | null; getToken: () => Promise<string>; signedIn: boolean; onSignIn: () => void; onMessage: (message: string) => void };
 
+function waitForIceGatheringComplete(peer: RTCPeerConnection): Promise<void> {
+  if (peer.iceGatheringState === "complete") return Promise.resolve();
+  return new Promise(resolve => {
+    const finish = () => {
+      if (peer.iceGatheringState !== "complete") return;
+      peer.removeEventListener("icegatheringstatechange", finish);
+      window.clearTimeout(timeout);
+      resolve();
+    };
+    const timeout = window.setTimeout(() => {
+      peer.removeEventListener("icegatheringstatechange", finish);
+      resolve();
+    }, 8000);
+    peer.addEventListener("icegatheringstatechange", finish);
+  });
+}
+
 export function LiveCalls({ client, getToken, signedIn, onSignIn, onMessage }: Props) {
   const [spokenLanguage, setSpokenLanguage] = useState("en");
   const [preferredLanguage, setPreferredLanguage] = useState("es");
@@ -181,6 +198,7 @@ export function LiveCalls({ client, getToken, signedIn, onSignIn, onMessage }: P
             for (const candidate of pendingIceRef.current.splice(0)) await addRemoteCandidate(candidate);
             const answer = await peer.createAnswer();
             await peer.setLocalDescription(answer);
+            await waitForIceGatheringComplete(peer);
             await sendSignal({ type: "answer", description: peer.localDescription });
           } else if (payload.type === "answer" && activeCall.role === "host" && !peer.remoteDescription) {
             await peer.setRemoteDescription(payload.description as RTCSessionDescriptionInit);
@@ -203,6 +221,7 @@ export function LiveCalls({ client, getToken, signedIn, onSignIn, onMessage }: P
                     offerStartedRef.current = true;
                     const offer = await peer.createOffer();
                     await peer.setLocalDescription(offer);
+                    await waitForIceGatheringComplete(peer);
                     setStatus("connecting");
                   }
                   if (peer.localDescription) await sendSignal({ type: "offer", description: peer.localDescription });
