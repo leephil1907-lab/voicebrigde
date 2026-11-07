@@ -105,13 +105,6 @@ export default function HomeScreen() {
     } finally { setAuthBusy(false); }
   }
 
-  async function signOut() {
-    if (!supabase) return;
-    const { error } = await supabase.auth.signOut();
-    if (error) Alert.alert("Sign-out failed", error.message);
-    else { setSession(null); setPreviewUrl(null); setRecordingUri(null); }
-  }
-
   async function translateRecording() {
     if (!recordingUri) return;
     if (!voiceConsent) return Alert.alert("Voice permission required", "Confirm that this is your voice or that you have the speaker's explicit permission.");
