@@ -248,6 +248,18 @@ app.post("/v1/voice/translate", {
       }
       throw reservationError;
     }
+    if (reservation?.insufficientCredits) {
+      await supabaseAdmin.from("voicebridge_jobs").delete().eq("id", job.id).eq("user_id", user.id);
+      createdJobId = undefined;
+      await supabaseAdmin.storage.from(audioBucket).remove([inputPath]);
+      inputPath = undefined;
+      return reply.code(402).send({
+        error: "INSUFFICIENT_CREDITS",
+        message: "You need more translation credits. Choose a credit top-up or an active subscription to continue.",
+        creditsAvailable: reservation.creditsAvailable,
+        creditsRequired: reservation.creditsRequired,
+      });
+    }
     return reply.code(202).send({
       id: job.id, status: job.status, targetLanguage: job.target_language,
       createdAt: job.created_at, creditsReserved: reservation?.credits,
