@@ -31,7 +31,7 @@ services:
       - key: PAYSTACK_APP_URL
         value: https://voicebridge-81xs.onrender.com
       - key: PAYSTACK_CREDIT_PACKAGES_JSON
-        value: "[]"
+        value: '[{"code":"starter","name":"Starter","description":"1 translation minute · one-time top-up","amountMinor":750000,"credits":60},{"code":"growth","name":"Growth","description":"5 translation minutes · one-time top-up","amountMinor":3500000,"credits":300},{"code":"power","name":"Power","description":"10 translation minutes · one-time top-up","amountMinor":6500000,"credits":600}]'
       - key: PAYSTACK_SUBSCRIPTION_PLANS_JSON
         value: "[]"
       # Optional messaging variables can be added later in the Render dashboard.
