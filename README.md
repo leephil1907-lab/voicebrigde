@@ -124,9 +124,9 @@ Recommended monthly subscriptions:
 
 | Plan code | Display name | Price | Included time |
 |---|---|---:|---:|
-| `creator` | Creator | ₦24,900/month | 3 minutes |
-| `pro` | Pro | ₦54,900/month | 8 minutes |
-| `business` | Studio | ₦109,900/month | 18 minutes |
+| `creator` | Creator | ₦19,900/month | 3 minutes |
+| `pro` | Pro | ₦49,900/month | 8 minutes |
+| `business` | Studio | ₦99,900/month | 18 minutes |
 
 These are launch prices, not a guarantee of margin. Recalculate against the actual provider invoice, FX rate, Paystack fees and support costs before promotions or discounts.
 
@@ -144,9 +144,9 @@ Create three monthly plans in the Paystack dashboard first, then set the subscri
 
 ```json
 [
-  {"code":"creator","name":"Creator","description":"3 translation minutes each month","paystackPlanCode":"PLN_CREATOR","amountMinor":2490000,"interval":"month","includedMinutes":3},
-  {"code":"pro","name":"Pro","description":"8 translation minutes each month","paystackPlanCode":"PLN_PRO","amountMinor":5490000,"interval":"month","includedMinutes":8},
-  {"code":"business","name":"Studio","description":"18 translation minutes each month","paystackPlanCode":"PLN_STUDIO","amountMinor":10990000,"interval":"month","includedMinutes":18}
+  {"code":"creator","name":"Creator","description":"3 translation minutes each month","paystackPlanCode":"PLN_CREATOR","amountMinor":1990000,"interval":"month","includedMinutes":3},
+  {"code":"pro","name":"Pro","description":"8 translation minutes each month","paystackPlanCode":"PLN_PRO","amountMinor":4990000,"interval":"month","includedMinutes":8},
+  {"code":"business","name":"Studio","description":"18 translation minutes each month","paystackPlanCode":"PLN_STUDIO","amountMinor":9990000,"interval":"month","includedMinutes":18}
 ]
 ```
 
