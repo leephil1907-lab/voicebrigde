@@ -295,7 +295,7 @@ app.get("/v1/account/overview", { preHandler: authenticate }, async (request, re
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const [subscriptionResult, creditResult, usageResult] = await Promise.all([
     supabaseAdmin.from("voicebridge_subscriptions")
-      .select("plan_code,status,currency,billing_interval,current_period_end,cancel_at_period_end")
+      .select("plan_code,status,currency,billing_interval,current_period_start,current_period_end,cancel_at_period_end,metadata")
       .eq("user_id", userId).in("status", ["active", "trialing", "past_due"])
       .order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabaseAdmin.from("voicebridge_credit_accounts").select("available_credits,currency")
@@ -309,6 +309,21 @@ app.get("/v1/account/overview", { preHandler: authenticate }, async (request, re
     return reply.code(503).send({ error: "ACCOUNT_OVERVIEW_UNAVAILABLE", message: "Account usage and billing data are not available yet." });
   }
   const subscription = subscriptionResult.data;
+  let subscriptionMinutesIncluded = Number(subscription?.metadata?.includedMinutes || 0);
+  let subscriptionMinutesUsed = 0;
+  if (subscription?.current_period_start && subscription?.current_period_end && subscriptionMinutesIncluded > 0) {
+    const { data: reservations, error: reservationError } = await supabaseAdmin.from("voicebridge_credit_reservations")
+      .select("credits_reserved")
+      .eq("user_id", userId).eq("funding_source", "subscription")
+      .in("status", ["reserved", "settled"])
+      .eq("period_start", subscription.current_period_start)
+      .eq("period_end", subscription.current_period_end);
+    if (reservationError) {
+      request.log.error({ userId, error: reservationError }, "Could not load subscription usage");
+      return reply.code(503).send({ error: "SUBSCRIPTION_USAGE_UNAVAILABLE", message: "Subscription usage is not available yet." });
+    }
+    subscriptionMinutesUsed = (reservations || []).reduce((sum, item) => sum + Number(item.credits_reserved || 0), 0) / 60;
+  }
   return {
     planCode: subscription?.plan_code || "free",
     subscriptionStatus: subscription?.status || "free",
@@ -317,6 +332,9 @@ app.get("/v1/account/overview", { preHandler: authenticate }, async (request, re
     currentPeriodEnd: subscription?.current_period_end || null,
     cancelAtPeriodEnd: subscription?.cancel_at_period_end || false,
     creditsAvailable: creditResult.data?.available_credits || 0,
+    subscriptionMinutesIncluded,
+    subscriptionMinutesUsed,
+    subscriptionMinutesRemaining: Math.max(0, subscriptionMinutesIncluded - subscriptionMinutesUsed),
     translationsLast30Days: usageResult.count || 0,
     maxTranslationsPer24Hours: env.MAX_TRANSLATIONS_PER_USER_PER_DAY,
     checkoutEnabled: Boolean(env.PAYSTACK_SECRET_KEY),
