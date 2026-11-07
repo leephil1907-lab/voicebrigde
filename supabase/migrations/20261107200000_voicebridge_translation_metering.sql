@@ -111,9 +111,9 @@ begin
     end if;
   end if;
 
-  -- A one-time 15-credit trial is granted only when the user's credit account is first created.
+  -- A one-time 60-credit (one minute) trial is granted only when the user's credit account is first created.
   insert into public.voicebridge_credit_accounts(user_id, currency, available_credits, updated_at)
-  values (p_user_id, 'CRD', 15, now())
+  values (p_user_id, 'CRD', 60, now())
   on conflict (user_id) do nothing
   returning user_id into inserted_user;
   if inserted_user is not null then
@@ -121,7 +121,7 @@ begin
       user_id, amount, currency, transaction_type, reference_type,
       reference_id, idempotency_key, description
     ) values (
-      p_user_id, 15, 'CRD', 'grant', 'free_trial', p_user_id::text,
+      p_user_id, 60, 'CRD', 'grant', 'free_trial', p_user_id::text,
       'free-trial-v1', 'One-time VoiceBridge trial allowance'
     ) on conflict (user_id, idempotency_key) do nothing;
   end if;
