@@ -255,6 +255,40 @@ app.get("/v1/voice/translations", { preHandler: authenticate }, async (request, 
   return { items: data || [] };
 });
 
+// Account overview is read-only; payments and credit mutations remain server/webhook-only.
+app.get("/v1/account/overview", { preHandler: authenticate }, async (request, reply) => {
+  const userId = request.user!.id;
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const [subscriptionResult, creditResult, usageResult] = await Promise.all([
+    supabaseAdmin.from("voicebridge_subscriptions")
+      .select("plan_code,status,currency,billing_interval,current_period_end,cancel_at_period_end")
+      .eq("user_id", userId).in("status", ["active", "trialing", "past_due"])
+      .order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    supabaseAdmin.from("voicebridge_credit_accounts").select("available_credits,currency")
+      .eq("user_id", userId).maybeSingle(),
+    supabaseAdmin.from("voicebridge_jobs").select("id", { count: "exact", head: true })
+      .eq("user_id", userId).gte("created_at", since),
+  ]);
+  const failure = subscriptionResult.error || creditResult.error || usageResult.error;
+  if (failure) {
+    request.log.error({ userId, error: failure }, "Could not load account overview");
+    return reply.code(503).send({ error: "ACCOUNT_OVERVIEW_UNAVAILABLE", message: "Account usage and billing data are not available yet." });
+  }
+  const subscription = subscriptionResult.data;
+  return {
+    planCode: subscription?.plan_code || "free",
+    subscriptionStatus: subscription?.status || "free",
+    currency: subscription?.currency || creditResult.data?.currency || "USD",
+    billingInterval: subscription?.billing_interval || null,
+    currentPeriodEnd: subscription?.current_period_end || null,
+    cancelAtPeriodEnd: subscription?.cancel_at_period_end || false,
+    creditsAvailable: creditResult.data?.available_credits || 0,
+    translationsLast30Days: usageResult.count || 0,
+    maxTranslationsPer24Hours: env.MAX_TRANSLATIONS_PER_USER_PER_DAY,
+    checkoutEnabled: false,
+  };
+});
+
 
 // Incoming audio is used only for transcription and text translation; no voice cloning.
 app.post("/v1/voice/understand", { preHandler: authenticate, config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } }, async (request, reply) => {
