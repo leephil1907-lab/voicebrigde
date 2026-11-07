@@ -6,7 +6,7 @@ import { parsePaystackCatalog, verifyPaystackWebhookSignature } from "../src/pay
 test("parses server-defined Paystack credit packages and subscription plans", () => {
   const catalog = parsePaystackCatalog(
     JSON.stringify([{ code: "starter", name: "Starter", amountMinor: 500000, credits: 1000 }]),
-    JSON.stringify([{ code: "creator", name: "Creator", paystackPlanCode: "PLN_test", amountMinor: 2490000, interval: "month", includedMinutes: 3 }]),
+    JSON.stringify([{ code: "creator", name: "Creator", paystackPlanCode: "PLN_test", amountMinor: 1990000, interval: "month", includedMinutes: 3 }]),
   );
   assert.equal(catalog.credits[0]?.credits, 1000);
   assert.equal(catalog.plans[0]?.paystackPlanCode, "PLN_test");
