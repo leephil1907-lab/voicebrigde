@@ -79,7 +79,7 @@ export interface AccountOverview {
   subscriptionMinutesUsed: number;
   subscriptionMinutesRemaining: number;
   translationsLast30Days: number;
-  maxTranslationsPer24Hours: number;
+  maxTranslationsPerHour: number;
   checkoutEnabled: boolean;
 }
 
