@@ -13,6 +13,7 @@ create table if not exists public.voicebridge_credit_reservations (
   subscription_credits bigint not null default 0 check (subscription_credits >= 0),
   wallet_credits bigint not null default 0 check (wallet_credits >= 0),
   plan_code text,
+  constraint voicebridge_credit_reservation_split_check check (subscription_credits + wallet_credits = credits_reserved),
   period_start timestamptz,
   period_end timestamptz,
   status text not null default 'reserved' check (status in ('reserved', 'settled', 'refunded')),
@@ -24,7 +25,7 @@ create index if not exists voicebridge_credit_reservations_owner_idx
   on public.voicebridge_credit_reservations(user_id, created_at desc);
 create index if not exists voicebridge_credit_reservations_period_idx
   on public.voicebridge_credit_reservations(user_id, period_start, period_end)
-  where funding_source = 'subscription' and status in ('reserved', 'settled');
+  where subscription_credits > 0 and status in ('reserved', 'settled');
 
 alter table public.voicebridge_credit_reservations enable row level security;
 revoke all on public.voicebridge_credit_reservations from anon, authenticated;
@@ -300,7 +301,7 @@ begin
 
   if reservation.wallet_credits > 0 then
     insert into public.voicebridge_credit_accounts(user_id, currency, available_credits, updated_at)
-    values (reservation.user_id, 'CRD', reservation.credits_reserved, now())
+    values (reservation.user_id, 'CRD', reservation.wallet_credits, now())
     on conflict (user_id) do update
       set available_credits = public.voicebridge_credit_accounts.available_credits + excluded.available_credits,
           currency = 'CRD', updated_at = now();
@@ -309,7 +310,7 @@ begin
       user_id, amount, currency, transaction_type, reference_type,
       reference_id, idempotency_key, description
     ) values (
-      reservation.user_id, reservation.credits_reserved, 'CRD', 'refund',
+      reservation.user_id, reservation.wallet_credits, 'CRD', 'refund',
       'translation_job', old.id::text, 'translation-delete-refund:' || old.id::text,
       'Automatic refund for a cancelled queued translation'
     ) on conflict (user_id, idempotency_key) do nothing;
