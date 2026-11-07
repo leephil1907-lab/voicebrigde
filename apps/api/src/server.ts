@@ -331,7 +331,7 @@ app.get("/v1/account/overview", { preHandler: authenticate }, async (request, re
   if (subscription?.current_period_start && subscription?.current_period_end && subscriptionMinutesIncluded > 0) {
     const { data: reservations, error: reservationError } = await supabaseAdmin.from("voicebridge_credit_reservations")
       .select("subscription_credits")
-      .eq("user_id", userId).eq("funding_source", "subscription")
+      .eq("user_id", userId).gt("subscription_credits", 0)
       .in("status", ["reserved", "settled"])
       .eq("period_start", subscription.current_period_start)
       .eq("period_end", subscription.current_period_end);
