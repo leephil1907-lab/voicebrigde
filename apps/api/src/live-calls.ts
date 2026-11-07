@@ -154,7 +154,7 @@ export function registerLiveCallRoutes(app: FastifyInstance, deps: Dependencies)
       .select("id,status").eq("id", request.params.id).maybeSingle();
     if (!call || call.status !== "active") return fail(reply, 409, "LIVE_CALL_NOT_ACTIVE", "The call is not active.");
     const { data: participants } = await supabaseAdmin.from("voicebridge_live_call_participants")
-      .select("user_id,spoken_language,left_at").eq("call_id", call.id);
+      .select("user_id,spoken_language,preferred_language,left_at").eq("call_id", call.id);
     const mine = (participants || []).find((participant) => participant.user_id === currentUserId && !participant.left_at);
     const others = (participants || []).filter((participant) => participant.user_id !== currentUserId && !participant.left_at);
     if (!mine || others.length !== 1) return fail(reply, 403, "LIVE_CALL_PARTICIPANT_REQUIRED", "Only active call participants can start translation.");
