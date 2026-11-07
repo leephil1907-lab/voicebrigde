@@ -12,7 +12,7 @@ type Dependencies = {
 
 const supportedInputLanguages = new Set([
   "en", "es", "fr", "pt", "de", "it", "ar", "zh", "ja", "ko",
-  "ha", "yo", "sw", "hi", "nl", "ru", "tr", "ur", "id", "vi",
+  "yo", "sw", "hi", "nl", "ru", "tr", "id", "vi",
 ]);
 const supportedOutputLanguages = new Set([
   "en", "es", "pt", "fr", "ja", "ru", "zh", "de", "ko", "hi", "id", "vi", "it",
