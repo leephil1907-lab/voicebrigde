@@ -40,7 +40,7 @@ create or replace function public.reserve_voicebridge_translation(
 )
 returns jsonb
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $$
 declare
@@ -129,7 +129,13 @@ begin
   select * into account_row from public.voicebridge_credit_accounts
     where user_id = p_user_id for update;
   if account_row.available_credits < required_credits then
-    raise exception 'INSUFFICIENT_CREDITS';
+    -- Return a normal result so the one-time trial grant commits even when this
+    -- particular recording is too long for the remaining balance.
+    return jsonb_build_object(
+      'reserved', false, 'insufficientCredits', true,
+      'creditsAvailable', account_row.available_credits,
+      'creditsRequired', required_credits
+    );
   end if;
 
   update public.voicebridge_credit_accounts
@@ -235,3 +241,49 @@ create trigger voicebridge_translation_billing_finalize
 -- Credit balances are denominated in internal credits, not currency.
 update public.voicebridge_credit_accounts set currency = 'CRD' where currency <> 'CRD';
 update public.voicebridge_credit_transactions set currency = 'CRD' where currency <> 'CRD';
+
+-- If API cleanup deletes a job after an ambiguous network result, restore any
+-- still-reserved wallet credits. Settled translations are never refunded here.
+create or replace function public.refund_voicebridge_translation_on_delete()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  reservation public.voicebridge_credit_reservations;
+begin
+  select * into reservation
+  from public.voicebridge_credit_reservations
+  where job_id = old.id and status = 'reserved'
+  for update;
+  if not found then return old; end if;
+
+  update public.voicebridge_credit_reservations
+    set status = 'refunded', refunded_at = now()
+    where id = reservation.id;
+
+  if reservation.funding_source = 'credits' then
+    insert into public.voicebridge_credit_accounts(user_id, currency, available_credits, updated_at)
+    values (reservation.user_id, 'CRD', reservation.credits_reserved, now())
+    on conflict (user_id) do update
+      set available_credits = public.voicebridge_credit_accounts.available_credits + excluded.available_credits,
+          currency = 'CRD', updated_at = now();
+
+    insert into public.voicebridge_credit_transactions(
+      user_id, amount, currency, transaction_type, reference_type,
+      reference_id, idempotency_key, description
+    ) values (
+      reservation.user_id, reservation.credits_reserved, 'CRD', 'refund',
+      'translation_job', old.id::text, 'translation-delete-refund:' || old.id::text,
+      'Automatic refund for a cancelled queued translation'
+    ) on conflict (user_id, idempotency_key) do nothing;
+  end if;
+  return old;
+end;
+$$;
+revoke all on function public.refund_voicebridge_translation_on_delete() from public, anon, authenticated;
+drop trigger if exists voicebridge_translation_billing_delete on public.voicebridge_jobs;
+create trigger voicebridge_translation_billing_delete
+  before delete on public.voicebridge_jobs
+  for each row execute function public.refund_voicebridge_translation_on_delete();
