@@ -41,7 +41,7 @@ returns bigint
 language plpgsql
 security invoker
 set search_path = ''
-as $
+as $$
 declare
   inserted_user uuid;
   available bigint;
@@ -65,7 +65,7 @@ begin
   from public.voicebridge_credit_accounts where user_id = p_user_id;
   return coalesce(available, 0);
 end;
-$;
+$$;
 revoke all on function public.ensure_voicebridge_credit_account(uuid) from public, anon, authenticated;
 grant execute on function public.ensure_voicebridge_credit_account(uuid) to service_role;
 
