@@ -157,3 +157,72 @@ create policy "Users can read own usage events" on public.voicebridge_usage_even
   for select to authenticated using ((select auth.uid()) = user_id);
 
 -- Billing webhook payloads are server-only; no client policy or table grant is created.
+
+
+-- Create/revoke profile + consent evidence atomically. These RPCs are server-only.
+create or replace function public.create_voicebridge_voice_profile(
+  p_user_id uuid,
+  p_display_name text,
+  p_consent_scope text,
+  p_speaker_name text,
+  p_consent_version text,
+  p_consent_text_hash text
+)
+returns setof public.voicebridge_voice_profiles
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  created_profile public.voicebridge_voice_profiles;
+begin
+  if p_consent_scope not in ('own_voice', 'authorized_third_party') then
+    raise exception 'Invalid voice consent scope';
+  end if;
+  if p_consent_scope = 'authorized_third_party' and coalesce(length(trim(p_speaker_name)), 0) = 0 then
+    raise exception 'Speaker name is required for third-party voice consent';
+  end if;
+  insert into public.voicebridge_voice_profiles (
+    user_id, display_name, status, consent_version, consented_at
+  ) values (
+    p_user_id, trim(p_display_name), 'active', p_consent_version, now()
+  ) returning * into created_profile;
+
+  insert into public.voicebridge_voice_consents (
+    user_id, voice_profile_id, consent_version, consent_scope,
+    speaker_name, consent_text_hash
+  ) values (
+    p_user_id, created_profile.id, p_consent_version, p_consent_scope,
+    nullif(trim(p_speaker_name), ''), p_consent_text_hash
+  );
+  return next created_profile;
+end;
+$$;
+
+revoke all on function public.create_voicebridge_voice_profile(uuid,text,text,text,text,text) from public, anon, authenticated;
+grant execute on function public.create_voicebridge_voice_profile(uuid,text,text,text,text,text) to service_role;
+
+create or replace function public.revoke_voicebridge_voice_profile(
+  p_user_id uuid,
+  p_profile_id uuid
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update public.voicebridge_voice_profiles
+  set status = 'revoked', revoked_at = coalesce(revoked_at, now()), updated_at = now()
+  where id = p_profile_id and user_id = p_user_id and status <> 'deleted';
+  if not found then return false; end if;
+
+  update public.voicebridge_voice_consents
+  set revoked_at = coalesce(revoked_at, now())
+  where voice_profile_id = p_profile_id and user_id = p_user_id and revoked_at is null;
+  return true;
+end;
+$$;
+
+revoke all on function public.revoke_voicebridge_voice_profile(uuid,uuid) from public, anon, authenticated;
+grant execute on function public.revoke_voicebridge_voice_profile(uuid,uuid) to service_role;
