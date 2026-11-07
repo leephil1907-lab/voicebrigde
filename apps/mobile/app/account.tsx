@@ -12,6 +12,9 @@ type Overview = {
   subscriptionStatus: string;
   currency: string;
   creditsAvailable: number;
+  subscriptionMinutesIncluded: number;
+  subscriptionMinutesUsed: number;
+  subscriptionMinutesRemaining: number;
   translationsLast30Days: number;
   maxTranslationsPer24Hours: number;
   currentPeriodEnd: string | null;
@@ -151,7 +154,7 @@ export default function AccountScreen() {
           <Text style={styles.plan}>{overview.planCode.toUpperCase()} PLAN</Text>
           <View style={styles.metricRow}><Text style={styles.metricLabel}>Translations · last 30 days</Text><Text style={styles.metricValue}>{overview.translationsLast30Days}</Text></View>
           <View style={styles.metricRow}><Text style={styles.metricLabel}>Rolling 24-hour limit</Text><Text style={styles.metricValue}>{overview.maxTranslationsPer24Hours}</Text></View>
-          <View style={styles.metricRow}><Text style={styles.metricLabel}>Available credits</Text><Text style={styles.metricValue}>{overview.creditsAvailable} · {Math.floor(overview.creditsAvailable / 60)} min</Text></View>
+          <View style={styles.metricRow}><Text style={styles.metricLabel}>Subscription minutes remaining</Text><Text style={styles.metricValue}>{overview.subscriptionMinutesRemaining} / {overview.subscriptionMinutesIncluded}</Text></View><View style={styles.metricRow}><Text style={styles.metricLabel}>Purchased credits</Text><Text style={styles.metricValue}>{overview.creditsAvailable} · {Math.floor(overview.creditsAvailable / 60)} min</Text></View>
           <Text style={styles.note}>Payments are processed securely by Paystack. 60 credits equal one translation minute. Audio is billed in whole-minute blocks per target language; failed translations are refunded automatically.</Text>
         </> : <Text style={styles.copy}>{busy ? "Loading…" : "Usage information is not available."}</Text>}
       </View>
