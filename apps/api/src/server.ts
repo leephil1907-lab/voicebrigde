@@ -17,6 +17,7 @@ import { registerPairingRoutes } from "./pilot/pairing-routes.js";
 import { SupabaseSendStore } from "./pilot/supabase-send-store.js";
 import { canonicalAudioMime, probeAudioDuration } from "./audio.js";
 import { createHash, randomUUID } from "node:crypto";
+import { parsePaystackCatalog, paystackRequest, verifyPaystackWebhookSignature, type PaystackCreditPackage, type PaystackSubscriptionPlan } from "./paystack.js";
 import { supabaseAdmin, supabasePublic, audioBucket, type AuthenticatedUser } from "./supabase.js";
 
 const env = z.object({
@@ -38,10 +39,18 @@ const env = z.object({
   PERSONAL_WHATSAPP_OWNER_ID: z.string().uuid().optional(),
   PERSONAL_WHATSAPP_SINGLE_INSTANCE: z.enum(["true", "false"]).default("false"),
   PERSONAL_WHATSAPP_SESSION_KEY: z.string().optional(),
+  PAYSTACK_SECRET_KEY: z.string().optional(),
+  PAYSTACK_WEBHOOK_SECRET: z.string().optional(),
+  PAYSTACK_CURRENCY: z.literal("NGN").default("NGN"),
+  PAYSTACK_APP_URL: z.string().url().optional(),
+  PAYSTACK_CREDIT_PACKAGES_JSON: z.string().default("[]"),
+  PAYSTACK_SUBSCRIPTION_PLANS_JSON: z.string().default("[]"),
 }).parse(process.env);
+const paystackCatalog = parsePaystackCatalog(env.PAYSTACK_CREDIT_PACKAGES_JSON, env.PAYSTACK_SUBSCRIPTION_PLANS_JSON);
+const paystackAppUrl = (env.PAYSTACK_APP_URL || process.env.RENDER_EXTERNAL_URL || "https://voicebridge-81xs.onrender.com").replace(/\/$/, "");
 if (!supabasePublic) throw new Error("Set SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY for API token verification.");
 
-declare module "fastify" { interface FastifyRequest { user: AuthenticatedUser | null } }
+declare module "fastify" { interface FastifyRequest { user: AuthenticatedUser | null; rawBody: Buffer | null } }
 
 const app = Fastify({
   logger: { level: env.NODE_ENV === "production" ? "info" : "debug" },
@@ -49,6 +58,14 @@ const app = Fastify({
   trustProxy: true,
 });
 app.decorateRequest("user", null);
+app.decorateRequest("rawBody", null);
+// Preserve the exact bytes Paystack signs before parsing JSON.
+app.removeContentTypeParser("application/json");
+app.addContentTypeParser("application/json", { parseAs: "buffer" }, (request, body, done) => {
+  request.rawBody = body as Buffer;
+  try { done(null, JSON.parse((body as Buffer).toString("utf8"))); }
+  catch (error) { done(error as Error, undefined); }
+});
 const supabaseOrigin = new URL(env.SUPABASE_URL).origin;
 const supabaseRealtime = supabaseOrigin.replace(/^http/, "ws");
 await app.register(helmet, {
@@ -278,15 +295,241 @@ app.get("/v1/account/overview", { preHandler: authenticate }, async (request, re
   return {
     planCode: subscription?.plan_code || "free",
     subscriptionStatus: subscription?.status || "free",
-    currency: subscription?.currency || creditResult.data?.currency || "USD",
+    currency: subscription?.currency || "NGN",
     billingInterval: subscription?.billing_interval || null,
     currentPeriodEnd: subscription?.current_period_end || null,
     cancelAtPeriodEnd: subscription?.cancel_at_period_end || false,
     creditsAvailable: creditResult.data?.available_credits || 0,
     translationsLast30Days: usageResult.count || 0,
     maxTranslationsPer24Hours: env.MAX_TRANSLATIONS_PER_USER_PER_DAY,
-    checkoutEnabled: false,
+    checkoutEnabled: Boolean(env.PAYSTACK_SECRET_KEY),
+    billingProvider: "paystack",
   };
+});
+
+
+// Paystack billing: amounts and product entitlements are server-owned catalog entries.
+// No client-supplied price, credit amount, plan code or user ID is trusted.
+function publicBillingCatalog() {
+  return {
+    provider: "paystack",
+    currency: env.PAYSTACK_CURRENCY,
+    enabled: Boolean(env.PAYSTACK_SECRET_KEY),
+    creditPackages: paystackCatalog.credits,
+    subscriptionPlans: paystackCatalog.plans,
+  };
+}
+
+app.get("/v1/billing/catalog", { preHandler: authenticate }, async () => publicBillingCatalog());
+
+app.get("/v1/billing/payments", { preHandler: authenticate }, async (request, reply) => {
+  const { data, error } = await supabaseAdmin.from("voicebridge_payments")
+    .select("id,reference,payment_type,product_code,amount_minor,currency,credits_granted,status,paid_at,created_at")
+    .eq("user_id", request.user!.id).order("created_at", { ascending: false }).limit(25);
+  if (error) return reply.code(503).send({ error: "BILLING_HISTORY_UNAVAILABLE", message: "Payment history is not available yet." });
+  return { items: data || [] };
+});
+
+app.post<{ Body: { type?: string; productCode?: string } }>("/v1/billing/checkout", { preHandler: authenticate }, async (request, reply) => {
+  if (!env.PAYSTACK_SECRET_KEY) return reply.code(503).send({ error: "PAYSTACK_NOT_CONFIGURED", message: "Paystack checkout has not been configured yet." });
+  const input = z.object({ type: z.enum(["credit_topup", "subscription"]), productCode: z.string().min(2).max(40) }).safeParse(request.body);
+  if (!input.success) return reply.code(400).send({ error: "INVALID_CHECKOUT", message: "Choose a valid credit package or subscription plan." });
+  const creditPackage: PaystackCreditPackage | undefined = input.data.type === "credit_topup"
+    ? paystackCatalog.credits.find(item => item.code === input.data.productCode) : undefined;
+  const subscriptionPlan: PaystackSubscriptionPlan | undefined = input.data.type === "subscription"
+    ? paystackCatalog.plans.find(item => item.code === input.data.productCode) : undefined;
+  if (input.data.type === "credit_topup" && !creditPackage) return reply.code(404).send({ error: "PACKAGE_NOT_FOUND", message: "This credit package is not available." });
+  if (input.data.type === "subscription" && !subscriptionPlan) return reply.code(404).send({ error: "PLAN_NOT_FOUND", message: "This subscription plan is not available." });
+  const user = request.user!;
+  if (!user.email) return reply.code(400).send({ error: "EMAIL_REQUIRED", message: "Add and verify an email address before checkout." });
+  const product = creditPackage || subscriptionPlan!;
+  const reference = "VB-" + randomUUID();
+  const paymentType = input.data.type;
+  const { data: payment, error: insertError } = await supabaseAdmin.from("voicebridge_payments").insert({
+    user_id: user.id,
+    reference,
+    payment_type: paymentType,
+    product_code: product.code,
+    plan_code: subscriptionPlan?.code || null,
+    paystack_plan_code: subscriptionPlan?.paystackPlanCode || null,
+    billing_interval: subscriptionPlan?.interval || null,
+    billing_email: user.email,
+    amount_minor: product.amountMinor,
+    currency: env.PAYSTACK_CURRENCY,
+    credits_granted: creditPackage?.credits || 0,
+    status: "pending",
+    gateway_payload: { productName: product.name },
+  }).select("id").single();
+  if (insertError) {
+    request.log.error({ userId: user.id, error: insertError }, "Could not create Paystack payment record");
+    return reply.code(503).send({ error: "PAYMENT_RECORD_FAILED", message: "Could not prepare this payment. Try again." });
+  }
+  try {
+    const body: Record<string, unknown> = {
+      email: user.email,
+      amount: product.amountMinor,
+      currency: env.PAYSTACK_CURRENCY,
+      reference,
+      callback_url: paystackAppUrl + "/?paystack=return",
+      metadata: {
+        voicebridge_payment_id: payment.id,
+        voicebridge_user_id: user.id,
+        payment_type: paymentType,
+        product_code: product.code,
+      },
+    };
+    if (subscriptionPlan) body.plan = subscriptionPlan.paystackPlanCode;
+    const initialized = await paystackRequest<{ authorization_url: string; access_code: string; reference: string }>(
+      env.PAYSTACK_SECRET_KEY, "/transaction/initialize", body,
+    );
+    if (initialized.reference !== reference || !initialized.authorization_url.startsWith("https://checkout.paystack.com/")) {
+      throw new Error("Paystack returned an invalid checkout response.");
+    }
+    return reply.code(201).send({ authorizationUrl: initialized.authorization_url, accessCode: initialized.access_code, reference });
+  } catch (error) {
+    await supabaseAdmin.from("voicebridge_payments").update({ status: "failed", gateway_payload: { initializationError: error instanceof Error ? error.message : "unknown" }, updated_at: new Date().toISOString() }).eq("id", payment.id).eq("user_id", user.id);
+    request.log.error({ userId: user.id, reference, error }, "Paystack transaction initialization failed");
+    return reply.code(502).send({ error: "PAYSTACK_INITIALIZATION_FAILED", message: "Paystack could not start this payment. No charge was made." });
+  }
+});
+
+async function verifyAndFulfillPaystackPayment(reference: string, userId?: string) {
+  const paymentQuery = supabaseAdmin.from("voicebridge_payments")
+    .select("id,user_id,reference,payment_type,product_code,plan_code,paystack_plan_code,billing_interval,billing_email,amount_minor,currency,credits_granted,status")
+    .eq("reference", reference);
+  const { data: payment, error: paymentError } = userId
+    ? await paymentQuery.eq("user_id", userId).maybeSingle()
+    : await paymentQuery.maybeSingle();
+  if (paymentError || !payment) throw new Error("Payment reference not found.");
+  if (payment.status === "success") return { status: "success", alreadyProcessed: true };
+  if (payment.status !== "pending") return { status: payment.status, alreadyProcessed: false };
+  if (!env.PAYSTACK_SECRET_KEY) throw new Error("Paystack is not configured.");
+  const verified = await paystackRequest<{
+    id: number; status: string; reference: string; amount: number; currency: string;
+    customer?: { customer_code?: string; email?: string };
+  }>(env.PAYSTACK_SECRET_KEY, "/transaction/verify/" + encodeURIComponent(reference));
+  if (verified.status !== "success" || verified.reference !== payment.reference ||
+      verified.amount !== Number(payment.amount_minor) || verified.currency !== payment.currency) {
+    throw new Error("Paystack verification did not match the expected successful payment.");
+  }
+  const { data: fulfilled, error: fulfillError } = await supabaseAdmin.rpc("fulfill_voicebridge_paystack_payment", {
+    p_reference: payment.reference,
+    p_amount_minor: verified.amount,
+    p_currency: verified.currency,
+    p_provider_transaction_id: String(verified.id),
+    p_gateway_payload: { verifiedStatus: verified.status, customerCode: verified.customer?.customer_code || null },
+  });
+  if (fulfillError) throw fulfillError;
+  return { status: "success", alreadyProcessed: Boolean(fulfilled?.alreadyProcessed), paymentType: payment.payment_type };
+}
+
+app.post<{ Params: { reference: string } }>("/v1/billing/verify/:reference", { preHandler: authenticate }, async (request, reply) => {
+  const reference = z.string().regex(/^VB-[a-f0-9-]{36}$/i).safeParse(request.params.reference);
+  if (!reference.success) return reply.code(400).send({ error: "INVALID_PAYMENT_REFERENCE", message: "The payment reference is invalid." });
+  try {
+    const result = await verifyAndFulfillPaystackPayment(reference.data, request.user!.id);
+    return result;
+  } catch (error) {
+    request.log.warn({ userId: request.user!.id, error }, "Paystack payment verification did not complete");
+    return reply.code(409).send({ error: "PAYMENT_NOT_VERIFIED", message: error instanceof Error ? error.message : "Payment is not verified yet." });
+  }
+});
+
+app.post("/webhooks/paystack", { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } }, async (request, reply) => {
+  const valid = verifyPaystackWebhookSignature({
+    rawBody: request.rawBody || Buffer.alloc(0),
+    paystackSignature: request.headers["paystack-signature"] as string | undefined,
+    legacySignature: request.headers["x-paystack-signature"] as string | undefined,
+    webhookSecret: env.PAYSTACK_WEBHOOK_SECRET,
+    secretKey: env.PAYSTACK_SECRET_KEY,
+  });
+  if (!valid) return reply.code(401).send({ error: "INVALID_WEBHOOK_SIGNATURE" });
+  const body = request.body as { event?: string; data?: Record<string, any> };
+  const event = body?.event || "unknown";
+  const data = body?.data || {};
+  try {
+    if (event === "charge.success" && typeof data.reference === "string") {
+      // A webhook alone never grants value: independently verify the transaction with Paystack.
+      const { data: knownPayment } = await supabaseAdmin.from("voicebridge_payments")
+        .select("reference").eq("reference", data.reference).maybeSingle();
+      if (knownPayment) {
+        await verifyAndFulfillPaystackPayment(data.reference);
+      } else {
+        // Subsequent recurring subscription invoices have new references and no pending checkout row.
+        const verified = await paystackRequest<{ status: string; reference: string; amount: number; currency: string }>(
+          env.PAYSTACK_SECRET_KEY!, "/transaction/verify/" + encodeURIComponent(data.reference),
+        );
+        if (verified.status !== "success" || verified.reference !== data.reference || verified.currency !== env.PAYSTACK_CURRENCY) {
+          throw new Error("Recurring Paystack charge could not be independently verified.");
+        }
+        const subscriptionCode = String(data.subscription?.subscription_code || data.subscription_code || "");
+        if (subscriptionCode) {
+          await supabaseAdmin.from("voicebridge_subscriptions").update({
+            status: "active",
+            updated_at: new Date().toISOString(),
+            ...(data.next_payment_date ? { current_period_end: data.next_payment_date } : {}),
+          }).eq("provider", "paystack").eq("provider_subscription_id", subscriptionCode);
+        }
+      }
+    } else if (event === "subscription.create") {
+      const subscriptionCode = String(data.subscription_code || data.subscription?.subscription_code || "");
+      const customerCode = String(data.customer?.customer_code || "");
+      const email = String(data.customer?.email || "").toLowerCase();
+      const paystackPlanCode = String(data.plan?.plan_code || data.plan?.plan || "");
+      if (subscriptionCode && email && paystackPlanCode) {
+        const { data: pendingPayment } = await supabaseAdmin.from("voicebridge_payments")
+          .select("user_id,plan_code,billing_interval,currency")
+          .eq("payment_type", "subscription").ilike("billing_email", email)
+          .eq("paystack_plan_code", paystackPlanCode).in("status", ["pending", "success"])
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (pendingPayment) {
+          const { error: subscriptionError } = await supabaseAdmin.from("voicebridge_subscriptions").upsert({
+            user_id: pendingPayment.user_id,
+            provider: "paystack",
+            provider_customer_id: customerCode || null,
+            provider_subscription_id: subscriptionCode,
+            plan_code: pendingPayment.plan_code,
+            status: "active",
+            currency: pendingPayment.currency,
+            billing_interval: pendingPayment.billing_interval,
+            current_period_start: data.createdAt || new Date().toISOString(),
+            current_period_end: data.next_payment_date || null,
+            cancel_at_period_end: false,
+            metadata: { paystackPlanCode },
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "provider_subscription_id" });
+          if (subscriptionError) throw subscriptionError;
+        }
+      }
+    } else if (event === "subscription.not_renew" || event === "subscription.disable" || event === "invoice.payment_failed" || event === "invoice.update") {
+      const subscriptionCode = String(data.subscription_code || data.subscription?.subscription_code || "");
+      if (subscriptionCode) {
+        const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+        if (event === "subscription.not_renew") update.cancel_at_period_end = true;
+        if (event === "subscription.disable") { update.status = "canceled"; update.cancel_at_period_end = false; }
+        if (event === "invoice.payment_failed") update.status = "past_due";
+        if (event === "invoice.update" && String(data.status || "").toLowerCase() === "success") {
+          update.status = "active";
+          if (data.next_payment_date) update.current_period_end = data.next_payment_date;
+        }
+        const { error: updateError } = await supabaseAdmin.from("voicebridge_subscriptions").update(update)
+          .eq("provider", "paystack").eq("provider_subscription_id", subscriptionCode);
+        if (updateError) throw updateError;
+      }
+    }
+    const eventKey = event + ":" + String(data.reference || data.id || data.subscription_code || data.subscription?.subscription_code || "event");
+    await supabaseAdmin.from("voicebridge_billing_events").upsert({
+      provider: "paystack",
+      provider_event_id: eventKey,
+      event_type: event,
+      processed_at: new Date().toISOString(),
+      payload: { event, data: { reference: data.reference || null, id: data.id || null, status: data.status || null } },
+    }, { onConflict: "provider,provider_event_id", ignoreDuplicates: true });
+    return reply.code(200).send({ received: true });
+  } catch (error) {
+    request.log.error({ event, error }, "Paystack webhook processing failed");
+    return reply.code(500).send({ error: "WEBHOOK_PROCESSING_FAILED" });
+  }
 });
 
 const voiceProfileConsentVersion = "2026-11-07-v1";
