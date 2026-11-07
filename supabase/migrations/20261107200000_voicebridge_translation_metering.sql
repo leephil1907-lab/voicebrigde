@@ -33,6 +33,39 @@ create policy "Users can read own credit reservations"
   on public.voicebridge_credit_reservations for select to authenticated
   using ((select auth.uid()) = user_id);
 
+create or replace function public.ensure_voicebridge_credit_account(p_user_id uuid)
+returns bigint
+language plpgsql
+security invoker
+set search_path = ''
+as $
+declare
+  inserted_user uuid;
+  available bigint;
+begin
+  insert into public.voicebridge_credit_accounts(user_id, currency, available_credits, updated_at)
+  values (p_user_id, 'CRD', 60, now())
+  on conflict (user_id) do nothing
+  returning user_id into inserted_user;
+
+  if inserted_user is not null then
+    insert into public.voicebridge_credit_transactions(
+      user_id, amount, currency, transaction_type, reference_type,
+      reference_id, idempotency_key, description
+    ) values (
+      p_user_id, 60, 'CRD', 'grant', 'free_trial', p_user_id::text,
+      'free-trial-v1', 'One-time VoiceBridge one-minute trial allowance'
+    ) on conflict (user_id, idempotency_key) do nothing;
+  end if;
+
+  select available_credits into available
+  from public.voicebridge_credit_accounts where user_id = p_user_id;
+  return coalesce(available, 0);
+end;
+$;
+revoke all on function public.ensure_voicebridge_credit_account(uuid) from public, anon, authenticated;
+grant execute on function public.ensure_voicebridge_credit_account(uuid) to service_role;
+
 create or replace function public.reserve_voicebridge_translation(
   p_user_id uuid,
   p_job_id uuid,
