@@ -230,6 +230,10 @@ app.post("/v1/voice/translate", {
     }).select("id,status,target_language,created_at").single();
     if (insertError) throw insertError;
     createdJobId = job.id;
+    // Initialize the wallet before reservation so the legacy paid-credit RPC
+    // cannot create a pooled free-minute grant for a new trial account.
+    const { error: accountInitError } = await supabaseAdmin.rpc("ensure_voicebridge_credit_account", { p_user_id: user.id });
+    if (accountInitError) throw accountInitError;
     const { data: reservation, error: reservationError } = await supabaseAdmin.rpc("reserve_voicebridge_translation", {
       p_user_id: user.id,
       p_job_id: job.id,
