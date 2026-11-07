@@ -482,6 +482,30 @@ app.post<{ Params: { reference: string } }>("/v1/billing/verify/:reference", { p
   }
 });
 
+async function advancePaystackSubscriptionPeriod(subscriptionCode: string, nextPaymentDate?: string | null) {
+  const { data: current, error: lookupError } = await supabaseAdmin.from("voicebridge_subscriptions")
+    .select("id,plan_code,current_period_end")
+    .eq("provider", "paystack").eq("provider_subscription_id", subscriptionCode).maybeSingle();
+  if (lookupError) throw lookupError;
+  if (!current) throw new Error("Paystack subscription record was not found for this renewal.");
+
+  const update: Record<string, unknown> = { status: "active", updated_at: new Date().toISOString() };
+  if (nextPaymentDate) {
+    const nextEnd = new Date(nextPaymentDate);
+    if (!Number.isFinite(nextEnd.getTime())) throw new Error("Paystack returned an invalid next payment date.");
+    const currentEnd = current.current_period_end ? new Date(current.current_period_end) : null;
+    // Advance only when the provider's next period end changes. Duplicate
+    // charge.success and invoice.update webhooks must not reset used minutes.
+    if (!currentEnd || currentEnd.getTime() !== nextEnd.getTime()) {
+      update.current_period_start = current.current_period_end || new Date().toISOString();
+      update.current_period_end = nextEnd.toISOString();
+    }
+  }
+  const { error: updateError } = await supabaseAdmin.from("voicebridge_subscriptions")
+    .update(update).eq("id", current.id);
+  if (updateError) throw updateError;
+}
+
 app.post("/webhooks/paystack", { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } }, async (request, reply) => {
   const valid = verifyPaystackWebhookSignature({
     rawBody: request.rawBody || Buffer.alloc(0),
@@ -511,11 +535,15 @@ app.post("/webhooks/paystack", { config: { rateLimit: { max: 120, timeWindow: "1
         }
         const subscriptionCode = String(data.subscription?.subscription_code || data.subscription_code || "");
         if (subscriptionCode) {
-          await supabaseAdmin.from("voicebridge_subscriptions").update({
-            status: "active",
-            updated_at: new Date().toISOString(),
-            ...(data.next_payment_date ? { current_period_end: data.next_payment_date } : {}),
-          }).eq("provider", "paystack").eq("provider_subscription_id", subscriptionCode);
+          const { data: subscriptionRow, error: subscriptionLookupError } = await supabaseAdmin.from("voicebridge_subscriptions")
+            .select("plan_code").eq("provider", "paystack")
+            .eq("provider_subscription_id", subscriptionCode).maybeSingle();
+          if (subscriptionLookupError) throw subscriptionLookupError;
+          const expectedPlan = paystackCatalog.plans.find(plan => plan.code === subscriptionRow?.plan_code);
+          if (!expectedPlan || verified.amount !== expectedPlan.amountMinor) {
+            throw new Error("Recurring Paystack charge amount does not match the configured subscription plan.");
+          }
+          await advancePaystackSubscriptionPeriod(subscriptionCode, data.next_payment_date || null);
         }
       }
     } else if (event === "subscription.create") {
@@ -556,13 +584,12 @@ app.post("/webhooks/paystack", { config: { rateLimit: { max: 120, timeWindow: "1
         if (event === "subscription.disable") { update.status = "canceled"; update.cancel_at_period_end = false; }
         if (event === "invoice.payment_failed") update.status = "past_due";
         if (event === "invoice.update" && String(data.status || "").toLowerCase() === "success") {
-          update.status = "active";
-          update.current_period_start = new Date().toISOString();
-          if (data.next_payment_date) update.current_period_end = data.next_payment_date;
+          await advancePaystackSubscriptionPeriod(subscriptionCode, data.next_payment_date || null);
+        } else {
+          const { error: updateError } = await supabaseAdmin.from("voicebridge_subscriptions").update(update)
+            .eq("provider", "paystack").eq("provider_subscription_id", subscriptionCode);
+          if (updateError) throw updateError;
         }
-        const { error: updateError } = await supabaseAdmin.from("voicebridge_subscriptions").update(update)
-          .eq("provider", "paystack").eq("provider_subscription_id", subscriptionCode);
-        if (updateError) throw updateError;
       }
     }
     const eventKey = event + ":" + String(data.reference || data.id || data.subscription_code || data.subscription?.subscription_code || "event");
