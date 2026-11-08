@@ -4,4 +4,6 @@ import "@fontsource-variable/manrope";
 import "@fontsource/instrument-serif";
 import "./styles.css";
 import App from "./App";
+import { registerServiceWorker } from "./lib/pwa";
 createRoot(document.getElementById("root")!).render(<React.StrictMode><App /></React.StrictMode>);
+registerServiceWorker();
