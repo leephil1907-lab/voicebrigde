@@ -46,6 +46,17 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem("voicebridge-theme", theme); } catch { /* theme still works in this session */ }
   }, [theme]);
+  useEffect(() => {
+    const updateGlassPointer = (event: PointerEvent) => {
+      const panel = (event.target as HTMLElement | null)?.closest<HTMLElement>(".work-card,.settings-card");
+      if (!panel) return;
+      const bounds = panel.getBoundingClientRect();
+      panel.style.setProperty("--vb-mouse-x", `${event.clientX - bounds.left}px`);
+      panel.style.setProperty("--vb-mouse-y", `${event.clientY - bounds.top}px`);
+    };
+    window.addEventListener("pointermove", updateGlassPointer, { passive: true });
+    return () => window.removeEventListener("pointermove", updateGlassPointer);
+  }, []);
   const [config, setConfig] = useState<RuntimeConfig | null>(null), [health, setHealth] = useState<Health | null>(null);
   const [connection, setConnection] = useState<ConnectionStatus>("checking");
   const [connectionOpen, setConnectionOpen] = useState(false), [authOpen, setAuthOpen] = useState(false), [menuOpen, setMenuOpen] = useState(false);
