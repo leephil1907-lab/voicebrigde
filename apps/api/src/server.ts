@@ -243,10 +243,26 @@ app.post("/v1/voice/translate", {
     if (!languages.some((x) => x.code === targetLanguage)) return reply.code(400).send({ error: "UNSUPPORTED_LANGUAGE", message: "Choose an enabled target language." });
     if (sourceLanguage !== "auto" && !languages.some((x) => x.code === sourceLanguage)) return reply.code(400).send({ error: "INVALID_SOURCE_LANGUAGE", message: "Choose a supported source language or auto-detection." });
 
-    const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count, error: quotaError } = await supabaseAdmin.from("voicebridge_jobs").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", since);
-    if (quotaError) throw quotaError;
-    if ((count || 0) >= 20) return reply.code(429).send({ error: "USER_HOURLY_QUOTA_EXCEEDED", message: "The current limit is 20 translations per hour." });
+    const now = new Date();
+    const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+    const hourStart = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+    const [dailyUsage, hourlyUsage] = await Promise.all([
+      supabaseAdmin.from("voicebridge_jobs").select("id", { count: "exact", head: true })
+        .eq("user_id", user.id).gte("created_at", dayStart),
+      supabaseAdmin.from("voicebridge_jobs").select("id", { count: "exact", head: true })
+        .eq("user_id", user.id).gte("created_at", hourStart),
+    ]);
+    if (dailyUsage.error) throw dailyUsage.error;
+    if (hourlyUsage.error) throw hourlyUsage.error;
+    if ((dailyUsage.count || 0) >= env.MAX_TRANSLATIONS_PER_USER_PER_DAY) {
+      return reply.code(429).send({
+        error: "USER_DAILY_QUOTA_EXCEEDED",
+        message: `You have reached the daily limit of ${env.MAX_TRANSLATIONS_PER_USER_PER_DAY} translations. Try again after midnight UTC.`,
+        limit: env.MAX_TRANSLATIONS_PER_USER_PER_DAY,
+        resetsAt: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)).toISOString(),
+      });
+    }
+    if ((hourlyUsage.count || 0) >= 20) return reply.code(429).send({ error: "USER_HOURLY_QUOTA_EXCEEDED", message: "The current limit is 20 translations per hour." });
     const id = randomUUID();
     inputPath = `${user.id}/${id}/source.${extensionFor(upload.mimetype)}`;
     const { error: storageError } = await supabaseAdmin.storage.from(audioBucket).upload(inputPath, new Blob([new Uint8Array(upload.buffer)], { type: upload.mimetype }), { contentType: upload.mimetype, upsert: false });
