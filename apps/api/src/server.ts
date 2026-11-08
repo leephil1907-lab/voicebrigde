@@ -105,7 +105,21 @@ await app.register(cors, { origin: (origin, callback) => {
   if (!origin || allowedOrigins.has(origin)) return callback(null, true);
   return callback(new Error("Origin is not allowed by VoiceBridge CORS."), false);
 }, credentials: true });
-await app.register(rateLimit, { max: 30, timeWindow: "1 minute" });
+await app.register(rateLimit, {
+  // The web app loads several API resources together. Keep a generous global
+  // ceiling while enforcing tighter limits on expensive routes individually.
+  max: 120,
+  timeWindow: "1 minute",
+  allowList: (request) => {
+    const path = request.url.split("?")[0];
+    return path === "/health"
+      || path.startsWith("/assets/")
+      || path === "/favicon.svg"
+      || path === "/favicon.ico"
+      || path === "/apple-touch-icon.png"
+      || path === "/manifest.webmanifest";
+  },
+});
 await app.register(multipart, { limits: { fileSize: env.MAX_AUDIO_BYTES, files: 1, fields: 8 } });
 
 const languages = [
