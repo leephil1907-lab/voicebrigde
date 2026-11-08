@@ -8,14 +8,18 @@ type OwnerAdminOptions = {
 
 export function registerOwnerAdminRoutes(app: FastifyInstance, options: OwnerAdminOptions) {
   const ownerEmail = (options.ownerEmail || "").trim().toLowerCase();
-  const isOwner = (request: any) => Boolean(ownerEmail && request.user?.email?.trim().toLowerCase() === ownerEmail);
+  const isOwner = async (request: any) => {
+    if (!ownerEmail || !request.user?.id || request.user.email?.trim().toLowerCase() !== ownerEmail) return false;
+    const { data, error } = await options.supabaseAdmin.auth.admin.getUserById(request.user.id);
+    return !error && data.user?.email?.trim().toLowerCase() === ownerEmail && Boolean(data.user.email_confirmed_at);
+  };
   const guard = async (request: any, reply: any) => {
     if (!ownerEmail) return reply.code(503).send({ error: "OWNER_NOT_CONFIGURED", message: "Owner access has not been configured." });
-    if (!isOwner(request)) return reply.code(403).send({ error: "OWNER_ACCESS_DENIED", message: "This account does not have website-owner access." });
+    if (!(await isOwner(request))) return reply.code(403).send({ error: "OWNER_ACCESS_DENIED", message: "This account does not have verified website-owner access." });
   };
 
   app.get("/v1/owner/access", { preHandler: options.authenticate }, async (request: any) => ({
-    isOwner: isOwner(request),
+    isOwner: await isOwner(request),
   }));
 
   app.get("/v1/owner/overview", { preHandler: options.authenticate }, async (request: any, reply: any) => {
