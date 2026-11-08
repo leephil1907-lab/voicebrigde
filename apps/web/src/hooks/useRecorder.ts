@@ -141,18 +141,27 @@ export function useRecorder(maxSeconds: number, maxBytes: number) {
         const analyser = context.createAnalyser();
         analyser.fftSize = 256;
         source.connect(analyser);
-        const samples = new Uint8Array(analyser.fftSize);
-        const rolling = Array<number>(64).fill(0.06);
+        // Read the live microphone's frequency spectrum from the same stream
+        // used by MediaRecorder. This avoids opening a second microphone session.
+        const frequencyData = new Uint8Array(analyser.frequencyBinCount);
+        const smoothed = Array<number>(64).fill(0.06);
         let lastFrame = 0;
         const draw = (time: number) => {
           if (recorder.state !== "recording") return;
-          if (time - lastFrame > 55) {
-            analyser.getByteTimeDomainData(samples);
-            let sum = 0;
-            for (const sample of samples) sum += ((sample - 128) / 128) ** 2;
-            rolling.shift();
-            rolling.push(Math.min(1, Math.max(0.06, Math.sqrt(sum / samples.length) * 5)));
-            setLivePeaks([...rolling]);
+          if (time - lastFrame > 45) {
+            analyser.getByteFrequencyData(frequencyData);
+            const bars = Array.from({ length: 64 }, (_, index) => {
+              const start = Math.floor(index * frequencyData.length / 64);
+              const end = Math.max(start + 1, Math.floor((index + 1) * frequencyData.length / 64));
+              let total = 0;
+              for (let bin = start; bin < end; bin++) total += frequencyData[bin] || 0;
+              const average = total / (end - start);
+              const level = Math.min(1, Math.max(0.06, Math.sqrt(average / 255) * 1.45));
+              // Smooth small microphone fluctuations without making speech feel delayed.
+              smoothed[index] = smoothed[index] * 0.58 + level * 0.42;
+              return smoothed[index];
+            });
+            setLivePeaks(bars);
             lastFrame = time;
           }
           frameRef.current = requestAnimationFrame(draw);
