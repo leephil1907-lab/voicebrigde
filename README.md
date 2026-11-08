@@ -11,6 +11,7 @@ VoiceBridge AI helps people translate spoken messages while retaining the origin
 - Prepare audio for sharing through the Android system share menu.
 - User accounts and private storage.
 - Background processing for translation jobs.
+- Usage limits: 100 translations per UTC day and 20 per hour.
 
 ## Tech Stack
 
@@ -34,7 +35,7 @@ Configure the required environment variables using the example files and deploym
 
 ## Deployment
 
-The project includes a Dockerfile and Render configuration. Set the required service secrets and verify the deployment before production use.
+The project includes a Dockerfile and Render configuration. Set the required service secrets before deployment. Paystack subscriptions require real plan codes created in Paystack and supplied through `PAYSTACK_SUBSCRIPTION_PLANS_JSON` in Render.
 
 ## Notes
 
