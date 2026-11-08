@@ -31,7 +31,7 @@ npm run dev:api
 npm run dev:web
 ```
 
-Configure the required environment variables using the example files and deployment documentation.
+Configure the required environment variables using the example files and deployment documentation. For branded Supabase Auth emails, set `SUPABASE_ACCESS_TOKEN` and run `npm run auth:email:apply`.
 
 ## Deployment
 
