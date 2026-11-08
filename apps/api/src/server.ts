@@ -20,12 +20,14 @@ import { createHash, randomUUID } from "node:crypto";
 import { parsePaystackCatalog, paystackRequest, verifyPaystackWebhookSignature, type PaystackCreditPackage, type PaystackSubscriptionPlan } from "./paystack.js";
 import { supabaseAdmin, supabasePublic, audioBucket, type AuthenticatedUser } from "./supabase.js";
 import { registerLiveCallRoutes } from "./live-calls.js";
+import { registerOwnerAdminRoutes } from "./owner-admin.js";
 
 const env = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(8080),
   HOST: z.string().default("0.0.0.0"),
   CORS_ORIGIN: z.string().default("http://localhost:8081"),
+  VOICEBRIDGE_OWNER_EMAIL: z.string().email().optional(),
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().optional(),
   SUPABASE_PUBLISHABLE_KEY: z.string().optional(),
@@ -139,6 +141,7 @@ if (env.PERSONAL_WHATSAPP_PILOT_ENABLED === "true") {
 // In-app two-party calls use WebRTC for media, Supabase Realtime for private signaling,
 // and short-lived OpenAI Realtime Translation client secrets for each listening language.
 registerLiveCallRoutes(app, { supabaseAdmin, authenticate, openAiApiKey: env.OPENAI_API_KEY });
+registerOwnerAdminRoutes(app, { supabaseAdmin, authenticate, ownerEmail: env.VOICEBRIDGE_OWNER_EMAIL });
 
 async function readUpload(part: MultipartFile) {
   const chunks: Buffer[] = [];
@@ -157,8 +160,7 @@ function extensionFor(mime: string) {
 app.get("/health", async (_request, reply) => {
   const [{ error: databaseError }, { data: bucket, error: storageError }] = await Promise.all([
     supabaseAdmin.from("voicebridge_jobs").select("id", { head: true, count: "exact" }),
-    supabaseAdmin.storage.getBucket(audioBucket),
-  ]);
+    supabaseAdmin.storage.getBucket(audioBucket),  ]);
   const ready = !databaseError && !storageError && bucket?.public === false;
   if (!ready) reply.code(503);
   return {
@@ -317,8 +319,7 @@ app.get("/v1/voice/translations", { preHandler: authenticate }, async (request, 
     .select("id,status,stage,target_language,source_language,error,created_at,completed_at")
     .eq("user_id", request.user!.id).order("created_at", { ascending: false }).limit(50);
   if (error) return reply.code(500).send({ error: "JOB_HISTORY_FAILED", message: "Could not load translation history." });
-  return { items: data || [] };
-});
+  return { items: data || [] };});
 
 // Account overview is read-only; payments and credit mutations remain server/webhook-only.
 app.get("/v1/account/overview", { preHandler: authenticate }, async (request, reply) => {
@@ -477,8 +478,7 @@ async function verifyAndFulfillPaystackPayment(reference: string, userId?: strin
   if (!env.PAYSTACK_SECRET_KEY) throw new Error("Paystack is not configured.");
   const verified = await paystackRequest<{
     id: number; status: string; reference: string; amount: number; currency: string;
-    customer?: { customer_code?: string; email?: string };
-  }>(env.PAYSTACK_SECRET_KEY, "/transaction/verify/" + encodeURIComponent(reference));
+    customer?: { customer_code?: string; email?: string };  }>(env.PAYSTACK_SECRET_KEY, "/transaction/verify/" + encodeURIComponent(reference));
   if (verified.status !== "success" || verified.reference !== payment.reference ||
       verified.amount !== Number(payment.amount_minor) || verified.currency !== payment.currency) {
     throw new Error("Paystack verification did not match the expected successful payment.");
@@ -637,8 +637,7 @@ app.post("/webhooks/paystack", { config: { rateLimit: { max: 120, timeWindow: "1
     return reply.code(200).send({ received: true });
   } catch (error) {
     request.log.error({ event, error }, "Paystack webhook processing failed");
-    return reply.code(500).send({ error: "WEBHOOK_PROCESSING_FAILED" });
-  }
+    return reply.code(500).send({ error: "WEBHOOK_PROCESSING_FAILED" });  }
 });
 
 const voiceProfileConsentVersion = "2026-11-07-v1";
