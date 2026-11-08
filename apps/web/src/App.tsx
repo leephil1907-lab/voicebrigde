@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { consumeSharedAudio } from "./lib/pwa";
 import { ArrowDownToLine, ArrowLeft, ArrowRight, AudioLines, AudioWaveform, FileAudio2, PhoneCall, SlidersHorizontal, CircleUserRound, BookOpenText, Check, CheckCheck, ChevronDown, CircleHelp, CirclePlus, Globe2, Headphones, Languages, Link2, LoaderCircle, LockKeyhole, LogOut, Menu, MessageCircle, Mic, Moon, Sun, UserRound, Pause, Play, Radio, RefreshCw, Share2, ShieldCheck, Sparkles, Square, Upload, X } from "lucide-react";
 import { Brand, SoundGlobe } from "./components/Brand";
 import { AudioPlayer } from "./components/AudioPlayer";
@@ -70,6 +71,13 @@ export default function App() {
   }, [auth.session?.user.id, auth.getToken]);
   const personalWhatsApp = usePersonalWhatsApp(auth.session?.user.id, auth.getToken);
   const recorder = useRecorder(config?.maxAudioSeconds || 120, config?.maxAudioBytes || 20 * 1024 * 1024);
+  useEffect(() => {
+    let active = true;
+    void consumeSharedAudio().then((file) => {
+      if (active && file) void recorder.importFile(file);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [recorder.importFile]);
   const refreshHistory = useCallback(async () => { if (!auth.session) { setItems([]); setHistoryError(""); return; } setHistoryLoading(true); setHistoryError(""); try { const data = await apiRequest<{ items: HistoryJob[] }>("/v1/voice/translations", {}, await auth.getToken()); setItems(data.items); } catch (error) { setHistoryError((error as Error).message); } finally { setHistoryLoading(false); } }, [auth.session, auth.getToken]);
   const [accountOverview, setAccountOverview] = useState<AccountOverview | null>(null);
   const [accountOverviewLoading, setAccountOverviewLoading] = useState(false);
