@@ -30,3 +30,25 @@ VoiceBridge does not send messages through server-side provider accounts. After 
 5. Check logs if a job fails or stalls, excluding tokens and private content when sharing logs. The default configured translation quota is **3 per user per day**; adjust `MAX_TRANSLATIONS_PER_USER_PER_DAY` in Render if appropriate for your costs and workload. See `docs/CORE_ACCEPTANCE.md` for a fuller checklist.
 
 Render Pro paid instances do not have the Free service's automatic idle spin-down, but deployments, restarts, failures and provider outages can still interrupt work. Supabase-backed queue leases allow recovery where safe. An ambiguous provider project-creation attempt is not automatically retried because it may already have incurred a charge.
+
+## Reachmark transactional email (Supabase Auth)
+
+VoiceBridge keeps Supabase Auth for account security and uses the Reachmark Resend sending domain for delivery. Configure this once in the Supabase Dashboard:
+
+1. In **Reachmark → Resend → Domains**, use the verified `notify.reachmarkdigital.xyz` domain. It is enabled for sending.
+2. Create a Resend API key with **Sending access** restricted to `notify.reachmarkdigital.xyz`. Do not use a full-access key for SMTP.
+3. In Supabase, open **Authentication → Email → SMTP Settings** and enable custom SMTP:
+   - Host: `smtp.resend.com`
+   - Port: `465` (implicit TLS) or `587` (STARTTLS)
+   - Username: `resend`
+   - Password: the restricted Reachmark Resend API key
+   - Sender email: `no-reply@notify.reachmarkdigital.xyz`
+   - Sender name: `VoiceBridge AI`
+4. Save the settings and keep **Confirm email** enabled. Do not enable automatic email confirmation for public registration.
+5. Under **Authentication → URL Configuration**, set the production Site URL to the deployed VoiceBridge origin and allow that exact origin as a Redirect URL. Add any approved custom domain separately.
+6. Under **Authentication → Email Templates**, review the confirmation and password-recovery templates. Keep the Supabase-generated confirmation/recovery links intact and disable click tracking/link rewriting for this sending domain so single-use auth links are not altered.
+7. Send a real signup confirmation and password-reset test to an address you control. Confirm the From address is the Reachmark domain and that both links return to the correct VoiceBridge origin.
+
+The web app calls Supabase Auth for signup, resend confirmation, password recovery and password updates. Supabase Auth generates and validates the one-time tokens; Reachmark SMTP only delivers the emails. No Resend API key belongs in the browser, mobile app, repository or public Render variables.
+
+New custom SMTP projects start with a conservative email send limit (currently 30 messages per hour). Review Supabase **Authentication → Rate Limits** before a public launch. Keep CAPTCHA protection enabled/configured as appropriate and monitor Resend delivery/bounce metrics.
