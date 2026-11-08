@@ -27,7 +27,7 @@ const env = z.object({
   PORT: z.coerce.number().int().positive().default(8080),
   HOST: z.string().default("0.0.0.0"),
   CORS_ORIGIN: z.string().default("http://localhost:8081"),
-  VOICEBRIDGE_OWNER_EMAIL: z.string().email().optional(),
+  VOICEBRIDGE_OWNER_EMAIL: z.string().email().default("reachmarkofficial@gmail.com"),
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().optional(),
   SUPABASE_PUBLISHABLE_KEY: z.string().optional(),
