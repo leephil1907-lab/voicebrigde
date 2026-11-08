@@ -62,7 +62,6 @@ if (!current.ok) {
   console.error(`Could not read Supabase Auth config (${current.status}). Check the token permissions.`);
   process.exit(1);
 }
-const config = await current.json();
 const payload = { smtp_sender_name: "VoiceBridge AI" };
 for (const [event, [subject, html]] of Object.entries(templates)) {
   payload[`mailer_subjects_${event}`] = subject;
