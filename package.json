@@ -19,7 +19,8 @@
     "test:web": "npm run test --workspace @voicebridge/web",
     "test:e2e:web": "npm run test:e2e --workspace @voicebridge/web",
     "test:api": "npm run test --workspace @voicebridge/api",
-    "start:render": "node scripts/start-render-free.mjs"
+    "start:render": "node scripts/start-render-free.mjs",
+    "auth:email:apply": "node scripts/apply-auth-email-branding.mjs"
   },
   "engines": {
     "node": ">=20"
