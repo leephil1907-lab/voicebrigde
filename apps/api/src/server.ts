@@ -459,7 +459,7 @@ app.post<{ Body: { type?: string; productCode?: string } }>("/v1/billing/checkou
     return reply.code(201).send({ authorizationUrl: initialized.authorization_url, accessCode: initialized.access_code, reference });
   } catch (error) {
     await supabaseAdmin.from("voicebridge_payments").update({ status: "failed", gateway_payload: { initializationError: error instanceof Error ? error.message : "unknown" }, updated_at: new Date().toISOString() }).eq("id", payment.id).eq("user_id", user.id);
-    request.log.error({ userId: user.id, reference, error }, "Paystack transaction initialization failed");
+    request.log.error({ userId: user.id, reference, errorMessage: error instanceof Error ? error.message : String(error) }, "Paystack transaction initialization failed");
     return reply.code(502).send({ error: "PAYSTACK_INITIALIZATION_FAILED", message: "Paystack could not start this payment. No charge was made." });
   }
 });
