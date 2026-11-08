@@ -13,7 +13,7 @@ services:
       - key: HOST
         value: 0.0.0.0
       - key: CORS_ORIGIN
-        value: http://localhost:8081,http://localhost:3000
+        value: https://voicebridge-81xs.onrender.com
       - key: SUPABASE_URL
         value: https://kggllnqkryquornprphu.supabase.co
       - key: SUPABASE_PUBLISHABLE_KEY
@@ -32,8 +32,9 @@ services:
         value: https://voicebridge-81xs.onrender.com
       - key: PAYSTACK_CREDIT_PACKAGES_JSON
         value: '[{"code":"starter","name":"Starter","description":"1 translation minute · one-time top-up","amountMinor":750000,"credits":60},{"code":"growth","name":"Growth","description":"5 translation minutes · one-time top-up","amountMinor":3500000,"credits":300},{"code":"power","name":"Power","description":"10 translation minutes · one-time top-up","amountMinor":6500000,"credits":600}]'
+      # Set this in the Render dashboard after creating matching plans in Paystack.
       - key: PAYSTACK_SUBSCRIPTION_PLANS_JSON
-        value: "[]"
+        sync: false
       # Optional messaging variables can be added later in the Render dashboard.
       - key: SUPABASE_STORAGE_BUCKET
         value: voicebridge-private
