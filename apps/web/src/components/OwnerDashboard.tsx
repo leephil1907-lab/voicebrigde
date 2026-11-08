@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Activity, AlertTriangle, CheckCircle2, Clock3, CreditCard, RefreshCw, ShieldCheck, Users } from "lucide-react";
 import { apiRequest } from "../lib/api";
-import "./owner-admin.css";
+import "../owner-admin.css";
 
 type OwnerOverview = {
   generatedAt: string;
