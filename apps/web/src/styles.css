@@ -952,3 +952,115 @@ html[data-theme="dark"] .auth-visibility:hover { background:#294333;color:#e5f3e
 @media(prefers-reduced-motion:reduce) {
   .auth-input-wrap { transition:none; }
 }
+
+
+/* Account page refresh: calmer hierarchy, fewer competing panels, more breathing room. */
+.account-page {
+  max-width: 1180px;
+  padding-left: clamp(20px, 4vw, 54px);
+  padding-right: clamp(20px, 4vw, 54px);
+  padding-bottom: 64px;
+}
+.account-page > .secondary-heading { margin-bottom: 30px; }
+.account-page > .secondary-heading h1 { margin-top: 8px; letter-spacing: -.045em; }
+.account-page > .secondary-heading p { max-width: 560px; line-height: 1.7; }
+.account-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 22px;
+}
+.account-grid > .work-card {
+  min-width: 0;
+  padding: clamp(20px, 2.4vw, 30px);
+  border-radius: 18px;
+}
+.account-grid > .account-profile {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(210px, .8fr) minmax(0, 2fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: 25px 28px;
+}
+.account-profile .profile-header { min-width: 0; gap: 16px; }
+.account-profile .profile-avatar { width: 58px; height: 58px; flex: 0 0 58px; }
+.account-profile .profile-header h2 { margin-top: 5px; font-size: 20px; letter-spacing: -.035em; }
+.account-profile .profile-header p { max-width: 100%; line-height: 1.5; }
+.account-profile .account-details-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+.account-profile .account-details-list > div {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid #e6eee5;
+  border-radius: 12px;
+}
+.account-profile .account-details-list dt { font-size: 10px; }
+.account-profile .account-details-list dd { text-align: left; font-size: 11px; }
+.account-profile > .button-outline { white-space: nowrap; min-height: 44px; }
+.account-grid > .paystack-billing-card { grid-column: 1 / -1; }
+.account-grid > .voice-profiles-card { grid-column: 1 / -1; }
+.account-grid .card-header { align-items: center; gap: 16px; margin-bottom: 16px; }
+.account-grid .card-header h2 { margin-top: 5px; font-size: 19px; letter-spacing: -.035em; }
+.account-grid .card-description { max-width: 760px; line-height: 1.7; }
+.account-grid .account-details-list { margin: 20px 0; }
+.account-grid .account-details-list > div { padding: 15px 0; }
+.account-grid .billing-product-grid { gap: 16px; }
+.account-grid .billing-product { padding: 19px; border-radius: 14px; }
+.account-grid .account-note-list { margin: 18px 0; }
+.account-grid .account-note-list button { padding: 16px 4px; }
+.account-grid .voice-profile-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding: 20px;
+  margin: 22px 0;
+  border-radius: 14px;
+}
+.account-grid .voice-profile-form .consent-line,
+.account-grid .voice-profile-form .button-primary { grid-column: 1 / -1; }
+.account-grid .voice-profile-form input:not([type=checkbox]),
+.account-grid .voice-profile-form select { min-height: 46px; }
+@media (max-width: 900px) {
+  .account-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .account-grid > .account-profile,
+  .account-grid > .paystack-billing-card,
+  .account-grid > .voice-profiles-card { grid-column: auto; }
+  .account-grid > .account-profile {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 18px;
+  }
+  .account-profile .account-details-list { grid-column: 1 / -1; grid-row: 2; }
+  .account-profile > .button-outline { grid-column: 2; grid-row: 1; }
+}
+@media (max-width: 600px) {
+  .account-page { padding-left: 16px; padding-right: 16px; }
+  .account-page > .secondary-heading { margin-bottom: 20px; }
+  .account-grid > .work-card { padding: 18px; border-radius: 15px; }
+  .account-grid > .account-profile { grid-template-columns: minmax(0, 1fr); gap: 17px; }
+  .account-profile .account-details-list {
+    grid-column: auto;
+    grid-row: auto;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .account-profile .account-details-list > div {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    padding: 12px;
+  }
+  .account-profile .account-details-list dd { text-align: right; }
+  .account-profile > .button-outline { grid-column: auto; grid-row: auto; justify-self: start; }
+  .account-grid .voice-profile-form { grid-template-columns: minmax(0, 1fr); padding: 15px; }
+  .account-grid .voice-profile-form .consent-line,
+  .account-grid .voice-profile-form .button-primary { grid-column: auto; }
+  .account-grid .card-header { align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .account-grid > .work-card { transition: none; }
+}
