@@ -40,7 +40,7 @@ type View = "studio" | "read" | "calls" | "settings" | "account" | "owner";
 export default function App() {
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     try { const saved = localStorage.getItem("voicebridge-theme"); if (saved === "light" || saved === "dark") return saved; } catch { /* storage can be blocked */ }
-    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    return "dark";
   });
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
