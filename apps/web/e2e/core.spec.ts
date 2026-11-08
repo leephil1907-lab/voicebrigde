@@ -27,7 +27,7 @@ test('registration clearly requests email confirmation and sign in persists acro
   await setup(page); await page.goto('/');
   await page.getByRole('button', { name: 'Sign in', exact: false }).first().click();
   const dialog = page.getByRole('dialog'); await dialog.getByRole('button', { name: 'Create an account' }).click();
-  await dialog.getByLabel('Email address').fill(user.email); await dialog.getByLabel('Password', { exact: true }).fill('password123'); await dialog.getByRole('button', { name: 'Create account', exact: true }).click();
+  await dialog.getByLabel('Email address').fill(user.email); await dialog.getByLabel('Create password', { exact: true }).fill('password123'); await dialog.getByLabel('I agree to the Terms and Privacy Policy.').check(); await dialog.getByRole('button', { name: 'Create account', exact: true }).click();
   await expect(dialog.getByRole('status')).toContainText('Check your email');
   await dialog.getByRole('button', { name: 'Sign in', exact: true }).click();
   await dialog.getByLabel('Password', { exact: true }).fill('password123'); await dialog.getByRole('button', { name: 'Sign in', exact: true }).click();
