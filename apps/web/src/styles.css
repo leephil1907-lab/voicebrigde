@@ -1197,7 +1197,7 @@ body {
 }
 :root[data-theme="light"] .top-bar { background:rgba(245,250,246,.66); }
 .top-path,.top-path strong { color:#b7c9bf; }
-:root[data-theme="light"] .top-path,. :root[data-theme="light"] .top-path strong { color:#50675a; }
+:root[data-theme="light"] .top-path,:root[data-theme="light"] .top-path strong { color:#50675a; }
 .status-button { background:var(--vb-glass); border-color:var(--vb-line); color:var(--vb-muted); backdrop-filter:blur(16px); }
 .page-heading h1,.secondary-heading h1 { color:var(--vb-ink); }
 .page-heading p,.secondary-heading p,.card-description { color:var(--vb-muted); }
