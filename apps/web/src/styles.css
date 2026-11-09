@@ -1123,3 +1123,22 @@ html[data-theme="dark"] .info-card>p,html[data-theme="dark"] .info-card li{color
 html[data-theme="dark"] .info-divider{background:rgba(225,255,239,.13)}
 @media(max-width:760px){html[data-theme="dark"] .app-sidebar{background:rgba(8,25,19,.94)}html[data-theme="dark"] .top-bar{padding-inline:16px}html[data-theme="dark"] body:before,html[data-theme="dark"] body:after{opacity:.14;filter:blur(62px)}}
 @media(prefers-reduced-motion:reduce){html[data-theme="dark"] body:before,html[data-theme="dark"] body:after{animation:none}html[data-theme="dark"] .work-card,html[data-theme="dark"] .settings-card{transition:none}}
+
+
+/* Multi-language batch translation */
+.batch-language-picker{display:grid;gap:12px;margin:18px 0;padding:16px;border:1px solid var(--line,rgba(120,150,130,.2));border-radius:18px;background:rgba(120,150,130,.055)}
+.batch-language-picker>div:first-child{display:grid;gap:4px}
+.batch-language-picker>div:first-child strong{font-size:13px}
+.batch-language-picker>div:first-child small{font-size:12px;line-height:1.5;color:var(--muted,#82958a)}
+.batch-language-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:190px;overflow:auto;padding-right:4px}
+.batch-language-options label{display:flex;align-items:center;gap:8px;min-width:0;padding:8px 10px;border:1px solid rgba(120,150,130,.16);border-radius:11px;font-size:12px;cursor:pointer;background:rgba(255,255,255,.025)}
+.batch-language-options label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.batch-language-options input{accent-color:#8bd8ae;flex:0 0 auto}
+.batch-language-options label:has(input:checked){border-color:rgba(111,210,157,.55);background:rgba(111,210,157,.1)}
+.batch-language-options label:has(input:disabled){opacity:.5;cursor:not-allowed}
+.batch-results{display:grid;gap:8px;margin-top:16px;padding:14px;border:1px solid rgba(120,150,130,.2);border-radius:16px;background:rgba(120,150,130,.05)}
+.batch-results>strong{font-size:13px;margin-bottom:2px}
+.batch-results>button{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;text-align:left;padding:9px 10px;border:1px solid rgba(120,150,130,.16);border-radius:10px;background:rgba(255,255,255,.025);color:inherit}
+.batch-results>button span{font-size:13px;font-weight:600}
+.batch-results>button small{font-size:11px;color:var(--muted,#82958a)}
+@media(max-width:520px){.batch-language-options{grid-template-columns:1fr}.batch-language-picker{padding:12px}}
