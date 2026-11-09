@@ -379,7 +379,9 @@ export default function App() {
   const read = async () => { if (!auth.session) { if (!auth.client) setConnectionOpen(true); else setAuthOpen(true); return; } if (!readingFile || !readConsent) return; const problem = validateAudioFile(readingFile, config?.maxAudioBytes || 20 * 1024 * 1024); if (problem) { flash(problem); return; } const format = audioFormat(readingFile); if (!format) return; setReadBusy(true); setReading(null); try { const form = new FormData(); form.append("file", new Blob([readingFile], { type: format.mime }), `incoming.${format.extension}`); form.append("processingConsent", "true"); setReading(await apiRequest<Reading>("/v1/voice/understand", { method: "POST", body: form, signal: AbortSignal.timeout(150000) }, await auth.getToken())); } catch (error) { flash((error as Error).message); } finally { setReadBusy(false); } };
   const current = translation.job;
   const activeRecording = recorder.status === "recording" || recorder.status === "paused";
-  const availableLanguages = LANGUAGES.filter(([v]) => !config?.targetLanguages?.length || config.targetLanguages.includes(v));
+  // Keep the complete, versioned UI catalogue visible. Runtime config can lag during rolling deploys;
+  // the API remains authoritative and validates target codes when a translation is submitted.
+  const availableLanguages = LANGUAGES;
   return <div className="app-layout">
     {menuOpen && <button className="mobile-overlay" aria-label="Close menu" onClick={() => setMenuOpen(false)} />}
     <aside className={`app-sidebar ${menuOpen ? "open" : ""}`} aria-label="VoiceBridge workspace sidebar">
