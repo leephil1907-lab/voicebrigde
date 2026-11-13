@@ -46,7 +46,7 @@ export default function HomeScreen() {
   const [voiceConsent, setVoiceConsent] = useState(false);
   const [accountSummary, setAccountSummary] = useState<any>(null);
   const player = useAudioPlayer(null);
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, isMeteringEnabled: true });
   const recorderState = useAudioRecorderState(recorder);
   const selectedLanguage = languages[languageIndex];
 
@@ -258,10 +258,15 @@ export default function HomeScreen() {
             <View style={styles.liveBadge}><View style={styles.liveDot} /><Text style={styles.liveText}>READY</Text></View>
           </View>
 
-          <View style={styles.wave}>
-            {Array.from({ length: 37 }, (_, i) => (
-              <View key={i} style={[styles.waveBar, { height: 12 + ((i * 17 + 9) % 35) }]} />
-            ))}
+          <View style={styles.wave} accessibilityLabel={recorderState.isRecording ? "Live microphone waveform" : "Audio waveform"}>
+            {Array.from({ length: 37 }, (_, i) => {
+              const meter = typeof recorderState.metering === "number"
+                ? Math.max(0, Math.min(1, (recorderState.metering + 60) / 60))
+                : 0;
+              const idleHeight = 12 + ((i * 17 + 9) % 35);
+              const liveHeight = 8 + meter * (18 + ((i * 13 + 7) % 30));
+              return <View key={i} style={[styles.waveBar, { height: recorderState.isRecording ? liveHeight : idleHeight, opacity: recorderState.isRecording ? 0.48 + meter * 0.52 : 0.8 }]} />;
+            })}
           </View>
 
           <Text style={styles.recordStatus}>
