@@ -28,7 +28,7 @@ test('registration clearly requests email confirmation and sign in persists acro
   await page.getByRole('button', { name: 'Sign in', exact: false }).first().click();
   const dialog = page.getByRole('dialog'); await dialog.getByRole('button', { name: 'Create an account' }).click();
   await dialog.getByLabel('Email address').fill(user.email); await dialog.getByLabel('Create password', { exact: true }).fill('password123'); await dialog.getByLabel('I agree to the Terms and Privacy Policy.').check(); await dialog.getByRole('button', { name: 'Create account', exact: true }).click();
-  await expect(dialog.getByRole('status')).toContainText('Check your email');
+  await expect(dialog.getByRole('status')).toContainText('Check your inbox');
   await dialog.getByRole('button', { name: 'Sign in', exact: true }).click();
   await dialog.getByLabel('Password', { exact: true }).fill('password123'); await dialog.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(dialog).not.toBeVisible(); await expect(page.getByRole('button', { name: 'Open my account' })).toBeVisible();
@@ -213,17 +213,19 @@ test('theme toggle persists and navigation updates across desktop and mobile', a
     const page = await browser.newPage({viewport:{width,height:850}, colorScheme:'light'});
     await setup(page); await page.goto('/');
     await expect(page.locator('.top-bar')).not.toContainText('Workspace');
-    await page.getByRole('button',{name:'Switch to dark theme'}).click();
+    // VoiceBridge intentionally defaults to dark mode unless the user has saved a preference.
     await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
-    await page.reload(); await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
-    await expect(page.getByRole('button',{name:'Switch to light theme'})).toBeVisible();
+    await page.getByRole('button',{name:'Switch to light theme'}).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme','light');
+    await page.reload(); await expect(page.locator('html')).toHaveAttribute('data-theme','light');
+    await expect(page.getByRole('button',{name:'Switch to dark theme'})).toBeVisible();
     const nav = width <= 800 ? page.getByRole('navigation',{name:'Mobile navigation'}) : page.getByRole('navigation',{name:'Main navigation'});
     await nav.getByRole('button',{name:width <= 800 ? 'Read note' : 'Read a voice note'}).click();
     await expect(page.getByRole('heading',{name:'Understand every message.'})).toBeVisible();
     await expect(nav.getByRole('button',{name:width <= 800 ? 'Read note' : 'Read a voice note'})).toHaveAttribute('aria-current','page');
     const dims = await page.evaluate(() => ({view:innerWidth,doc:document.documentElement.scrollWidth, headerRight:document.querySelector('.top-actions')!.getBoundingClientRect().right}));
     expect(dims.doc).toBeLessThanOrEqual(width); expect(dims.headerRight).toBeLessThanOrEqual(width);
-    await page.getByRole('button',{name:'Switch to light theme'}).click(); await expect(page.locator('html')).toHaveAttribute('data-theme','light');
+    await page.getByRole('button',{name:'Switch to dark theme'}).click(); await expect(page.locator('html')).toHaveAttribute('data-theme','dark');
     await page.close();
   }
 });
