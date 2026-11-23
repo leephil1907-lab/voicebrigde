@@ -1550,6 +1550,7 @@ dialog.modal{background:rgba(15,19,17,.98);color:#edf1e6;border:1px solid rgba(2
 @media(hover:hover) and (pointer:fine){.button-primary,.button-outline,.top-signin{transition:transform .24s var(--vb-ease),box-shadow .24s,border-color .24s}.button-primary:hover:not(:disabled),.button-outline:hover,.top-signin:hover{transform:translateY(-2px)}}
 @media(max-width:1120px){.app-sidebar{width:232px}.app-main{margin-left:232px;width:calc(100% - 232px)}.content-wrap{padding-inline:28px}.page-heading.voice-hero{grid-template-columns:minmax(0,.95fr) minmax(300px,1.05fr);min-height:345px;padding:32px}.voice-hero h1{font-size:clamp(40px,5vw,58px)}}
 @media(max-width:980px){.page-heading.voice-hero{grid-template-columns:1fr;min-height:390px}.voice-hero-copy{max-width:58%}.voice-hero h1{font-size:clamp(34px,4.6vw,48px)}.hero-visual{width:68%}}@media(max-width:900px){.workflow-grid{grid-template-columns:minmax(0,1fr)}.workflow-right{grid-template-columns:repeat(2,minmax(0,1fr))}.page-heading.voice-hero{min-height:340px}}
+@media(max-width:800px){.app-sidebar{width:min(300px,86vw)}.app-main{margin-left:0;width:100%}.top-bar{padding-inline:18px}.content-wrap{padding-inline:18px}}
 @media(max-width:760px){
  body{background-attachment:scroll}.app-sidebar{width:min(300px,86vw);background:rgba(9,12,11,.98)}.app-main{margin-left:0;width:100%}
  .top-bar{min-height:64px;height:64px;padding-inline:15px}.content-wrap{padding:20px 15px 104px}
