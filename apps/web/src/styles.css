@@ -1497,3 +1497,16 @@ dialog.modal::backdrop{background:rgba(3,7,16,.78);backdrop-filter:blur(9px)}
 @media(max-width:1050px){.page-heading{min-height:340px;padding:36px 30px}.hero-visual{width:54%}.page-heading h1{font-size:clamp(42px,6vw,64px)}}
 @media(max-width:760px){body{background-attachment:scroll}.app-sidebar{background:rgba(8,14,27,.98)}.app-main{margin-left:0;width:100%}.top-bar{min-height:64px;padding-inline:15px}.content-wrap{padding:18px 15px 100px}.page-heading{min-height:440px;display:block;padding:30px 22px 24px;border-radius:23px;margin-bottom:18px}.page-heading-copy{max-width:100%}.page-heading h1{margin:18px 0 12px;font-size:clamp(40px,11vw,55px);line-height:1}.page-heading p{max-width:320px;font-size:12px}.hero-visual{width:100%;height:57%;inset:auto 0 0;opacity:.9}.hero-atmosphere{object-position:center 58%;opacity:.56}.voice-orb{width:min(54vw,230px);transform:translate(0,4%)}.new-note{right:17px;bottom:16px}.hero-feature-row{gap:7px;margin:15px 0 18px}.hero-feature-row span{font-size:9px;padding:8px 10px}.workflow-grid{grid-template-columns:minmax(0,1fr)}.workflow-right{grid-template-columns:minmax(0,1fr)}.work-card,.settings-card,.send-card{border-radius:19px}.page-heading:after{background:linear-gradient(180deg,rgba(8,13,25,.98) 0%,rgba(8,13,25,.78) 42%,rgba(8,13,25,.12) 100%)}}
 @media(prefers-reduced-motion:reduce){.voice-orb:before,.voice-orb:after,.voice-orb-core{animation:none}.hero-atmosphere{display:none}.work-card:hover,.settings-card:hover{transform:none}}
+
+/* Refokus-inspired cursor light and deliberate entrance choreography */
+.work-card,.settings-card{transform-style:preserve-3d;transition:transform .28s cubic-bezier(.2,.75,.25,1),border-color .28s,box-shadow .28s}
+.work-card:after,.settings-card:after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;border-radius:inherit;background:radial-gradient(340px circle at var(--vb-mouse-x,50%) var(--vb-mouse-y,50%),rgba(158,190,255,.105),transparent 68%);opacity:0;transition:opacity .25s}
+.work-card:hover:after,.settings-card:hover:after{opacity:1}
+.work-card>* ,.settings-card>*{position:relative;z-index:1}
+.workflow-left>.work-card,.workflow-right>.work-card{animation:vb-card-arrive .72s cubic-bezier(.2,.75,.25,1) both}
+.workflow-left>.work-card:nth-child(2){animation-delay:.08s}
+.workflow-right>.work-card:nth-child(2){animation-delay:.14s}
+.workflow-right>.work-card:nth-child(3){animation-delay:.2s}
+@keyframes vb-card-arrive{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@media(hover:hover) and (pointer:fine){.button-primary,.button-outline,.top-signin{transition:transform .24s cubic-bezier(.2,.75,.25,1),box-shadow .24s,filter .24s}.button-primary:hover:not(:disabled),.button-outline:hover,.top-signin:hover{transform:translateY(-2px);box-shadow:0 12px 34px rgba(108,146,231,.24)}}
+@media(prefers-reduced-motion:reduce){.workflow-left>.work-card,.workflow-right>.work-card{animation:none}.work-card,.settings-card,.button-primary,.button-outline,.top-signin{transition:none}}
