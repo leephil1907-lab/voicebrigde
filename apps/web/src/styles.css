@@ -1568,6 +1568,14 @@ dialog.modal{background:rgba(15,19,17,.98);color:#edf1e6;border:1px solid rgba(2
 @media(max-width:390px){.page-heading.voice-hero{min-height:475px;padding:24px 18px}.voice-hero h1{font-size:38px}.hero-microcopy{display:none}.hero-signal-bottom{right:14px;bottom:52px}}
 @media(prefers-reduced-motion:reduce){.voice-hero-copy>*,.workflow-left>.work-card,.workflow-right>.work-card,.hero-language-ribbon>div{animation:none!important}.hero-visual{transform:none!important;transition:none!important}.work-card,.settings-card,.hero-primary,.button-primary,.top-signin{transition:none!important}}
 html[data-theme="dark"] body:before,html[data-theme="dark"] body:after{content:none;display:none}
+
+/* Neuralyn-inspired liquid-glass: a restrained specular rim, not a heavy card border. */
+.liquid-glass{position:relative;isolation:isolate;overflow:hidden;background:rgba(255,255,255,.025);background-blend-mode:luminosity;-webkit-backdrop-filter:blur(14px) saturate(130%);backdrop-filter:blur(14px) saturate(130%);box-shadow:inset 0 1px 1px rgba(255,255,255,.08)}
+.liquid-glass:before{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;padding:1.2px;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.38),rgba(255,255,255,.12) 22%,transparent 43%,transparent 57%,rgba(255,255,255,.12) 80%,rgba(255,255,255,.38));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude}
+.work-card:before,.settings-card:before,.send-card:before,.info-card:before,.quick-card:before{content:"";position:absolute;inset:0;z-index:0;border-radius:inherit;padding:1px;pointer-events:none;background:linear-gradient(180deg,rgba(255,255,255,.22),rgba(255,255,255,.08) 22%,transparent 45%,transparent 55%,rgba(255,255,255,.07) 82%,rgba(255,255,255,.18));-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude}
+.theme-toggle,.status-button{position:relative;isolation:isolate;overflow:hidden;background:rgba(255,255,255,.035);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.hero-signal-top,.hero-signal-bottom{padding:9px 12px;border-radius:999px;background:rgba(8,10,9,.32)}
+@media(prefers-reduced-motion:reduce){.liquid-glass{-webkit-backdrop-filter:none;backdrop-filter:none}}
 /* Light mode remains available through the existing theme switch. The hero keeps its cinematic black media frame. */
 html[data-theme="light"]{color-scheme:light;--vb-bg:#f1f3ef;--vb-panel:#fff;--vb-panel-raised:#f8faf6;--vb-ink:#19201a;--vb-muted:#687168;--vb-soft:#879087;--vb-line:rgba(22,29,21,.13);--vb-accent:#647a28}
 html[data-theme="light"] body{background:linear-gradient(180deg,#f5f7f2,#e9eee8);color:#19201a}
