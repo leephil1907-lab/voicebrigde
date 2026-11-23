@@ -453,8 +453,8 @@ export default function App() {
             <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260702_135039_b04d00db-6ee2-4e2a-a7f5-b2dfd3d24fd2.mp4" type="video/mp4" />
           </video>
           <div className="hero-visual-scrim" />
-          <div className="hero-signal-top"><span className="signal-live-dot" /> VOICE SIGNAL <span className="signal-divider" /> PARTICLE FIELD</div>
-          <div className="hero-signal-bottom">
+          <div className="hero-signal-top liquid-glass"><span className="signal-live-dot" /> VOICE SIGNAL <span className="signal-divider" /> PARTICLE FIELD</div>
+          <div className="hero-signal-bottom liquid-glass">
             <span className="signal-language">ENGLISH <ArrowRight size={13} /> {languageName(target).toUpperCase()}</span>
             <span className="signal-preserve"><AudioWaveform size={14} /> VOICE IDENTITY PRESERVED</span>
           </div>
