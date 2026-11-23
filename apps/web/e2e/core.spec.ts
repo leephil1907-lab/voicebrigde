@@ -77,11 +77,14 @@ test('invalid credentials surface an error and do not sign in', async ({page}) =
 
 test('document head exposes consistent crawlable branding and social previews', async ({ page }) => {
   await page.goto('/');
-  await expect(page).toHaveTitle('VoiceBridge — Your voice, in every language.');
+  await expect(page.getByRole('heading', { name: 'Speak naturally. Be heard everywhere.' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Create a voice note' })).toBeVisible();
+  await expect(page).toHaveTitle('VoiceBridge — Your voice, beyond borders.');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://voicebridge-81xs.onrender.com/');
-  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', 'VoiceBridge — Your voice, in every language.');
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', 'VoiceBridge — Your voice, beyond borders.');
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'https://voicebridge-81xs.onrender.com/og-voicebridge.png');
   await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#070809');
   await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute('content', 'https://voicebridge-81xs.onrender.com/og-voicebridge.png');
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg');
   await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/apple-touch-icon.png');
