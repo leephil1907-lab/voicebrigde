@@ -147,14 +147,35 @@ export default function App() {
   }, [theme]);
   useEffect(() => {
     const updateGlassPointer = (event: PointerEvent) => {
-      const panel = (event.target as HTMLElement | null)?.closest<HTMLElement>(".work-card,.settings-card");
-      if (!panel) return;
-      const bounds = panel.getBoundingClientRect();
-      panel.style.setProperty("--vb-mouse-x", `${event.clientX - bounds.left}px`);
-      panel.style.setProperty("--vb-mouse-y", `${event.clientY - bounds.top}px`);
+      const target = event.target as HTMLElement | null;
+      const panel = target?.closest<HTMLElement>(".work-card,.settings-card");
+      if (panel) {
+        const bounds = panel.getBoundingClientRect();
+        panel.style.setProperty("--vb-mouse-x", `${event.clientX - bounds.left}px`);
+        panel.style.setProperty("--vb-mouse-y", `${event.clientY - bounds.top}px`);
+      }
+      const visual = target?.closest<HTMLElement>(".hero-visual");
+      if (visual && window.matchMedia("(hover:hover) and (pointer:fine)").matches) {
+        const bounds = visual.getBoundingClientRect();
+        const x = (event.clientX - bounds.left) / bounds.width - .5;
+        const y = (event.clientY - bounds.top) / bounds.height - .5;
+        visual.style.setProperty("--hero-tilt-x", `${(-y * 2.2).toFixed(2)}deg`);
+        visual.style.setProperty("--hero-tilt-y", `${(x * 3.2).toFixed(2)}deg`);
+      }
+    };
+    const resetHeroTilt = (event: PointerEvent) => {
+      const visual = (event.target as HTMLElement | null)?.closest<HTMLElement>(".hero-visual");
+      if (visual) {
+        visual.style.setProperty("--hero-tilt-x", "0deg");
+        visual.style.setProperty("--hero-tilt-y", "0deg");
+      }
     };
     window.addEventListener("pointermove", updateGlassPointer, { passive: true });
-    return () => window.removeEventListener("pointermove", updateGlassPointer);
+    window.addEventListener("pointerout", resetHeroTilt, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", updateGlassPointer);
+      window.removeEventListener("pointerout", resetHeroTilt);
+    };
   }, []);
   const [config, setConfig] = useState<RuntimeConfig | null>(null), [health, setHealth] = useState<Health | null>(null);
   const [connection, setConnection] = useState<ConnectionStatus>("checking");
@@ -407,9 +428,29 @@ export default function App() {
         <button className={view === "account" ? "active" : ""} aria-current={view === "account" ? "page" : undefined} onClick={() => go("account")}><CircleUserRound size={19} /><span>Account</span></button>
       </nav>
       {message && <div className="toast" role="status">{message}<button onClick={() => setMessage("")} aria-label="Dismiss"><X size={16} /></button></div>}
-      {view === "studio" && <main className="content-wrap"><div className="page-heading"><div className="page-heading-copy"><div className="eyebrow-label">A VOICE THAT TRAVELS <span /> WITHOUT LOSING YOU</div><h1>Your voice crosses borders.<br /><span>Your identity doesn't.</span></h1><p>Speak naturally. Carry your tone, expression and unmistakable voice into another language.</p></div><div className="hero-visual" aria-hidden="true"><video className="hero-atmosphere" autoPlay muted loop playsInline preload="metadata"><source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260629_021419_291eb2af-5ed4-45a0-a1d6-3ef58f4bca0b.mp4" type="video/mp4" /></video><div className="voice-orb"><span className="orb-language one">ENGLISH</span><span className="orb-language two">{target.toUpperCase()}</span><span className="orb-language three">YOUR VOICE</span><div className="voice-orb-core"><AudioWaveform strokeWidth={1.35} /></div></div></div><div className="hero-language-ribbon" aria-hidden="true"><div><span>ENGLISH</span><i>✳</i><span>ESPAÑOL</span><i>✳</i><span>FRANÇAIS</span><i>✳</i><span>PORTUGUÊS</span><i>✳</i><span>العربية</span><i>✳</i><span>日本語</span><i>✳</i><span>ENGLISH</span><i>✳</i><span>ESPAÑOL</span></div></div><button className="button-outline new-note" onClick={newNote}><CirclePlus size={17} /> New note</button></div>
-      {connection !== "ready" && connection !== "checking" && <div className="alert-banner"><Link2 size={18} /><div><strong>Service connection needed</strong><p>Recording works in your browser. Connect the backend to translate and save notes.</p></div><button onClick={() => go("settings")}>View connections <ArrowRight size={15} /></button></div>}
-      <div className="hero-feature-row"><span><AudioLines size={15} /> Voice-first translation</span><span><Globe2 size={15} /> Multilingual conversations</span><span><ShieldCheck size={15} /> Preview before sharing</span></div><div className="workflow-grid"><div className="workflow-left"><section className="work-card recording-card"><div className="card-header"><div className="section-heading"><span className="step-icon"><Mic size={19} /></span><div><span className="section-kicker">STEP 01</span><h2>Your voice note</h2></div></div><span className="limit-badge">MAX {Math.round((config?.maxAudioSeconds || 120) / 60)} MIN · {config?.maxTranslationsPerDay || 3}/DAY</span></div><p className="card-description">Record a new message or upload an audio file from your device.</p>
+      {view === "studio" && <main className="content-wrap"><section className="page-heading voice-hero" aria-labelledby="studio-heading">
+        <div className="page-heading-copy voice-hero-copy">
+          <div className="eyebrow-label"><span /> THE VOICE TRANSLATION STUDIO</div>
+          <h1 id="studio-heading">Speak naturally.<br /><span>Be heard everywhere.</span></h1>
+          <p>Translate your voice into another language without leaving your tone, expression or identity behind.</p>
+          <div className="voice-hero-actions">
+            <button className="button-primary hero-primary" onClick={newNote}>Create a voice note <ArrowRight size={16} /></button>
+            <span className="hero-microcopy"><ShieldCheck size={14} /> Your voice stays yours</span>
+          </div>
+        </div>
+        <div className="hero-visual" aria-hidden="true">
+          <video className="hero-atmosphere" autoPlay muted loop playsInline preload="metadata" poster="">
+            <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260702_135039_b04d00db-6ee2-4e2a-a7f5-b2dfd3d24fd2.mp4" type="video/mp4" />
+          </video>
+          <div className="hero-visual-scrim" />
+          <div className="hero-signal-top"><span className="signal-live-dot" /> VOICE SIGNAL <span className="signal-divider" /> LIVE VISUAL</div>
+          <div className="hero-signal-bottom">
+            <span className="signal-language">ENGLISH <ArrowRight size={13} /> {languageName(target).toUpperCase()}</span>
+            <span className="signal-preserve"><AudioWaveform size={14} /> VOICE IDENTITY PRESERVED</span>
+          </div>
+        </div>
+        <div className="hero-language-ribbon" aria-hidden="true"><div><span>ENGLISH</span><i>✳</i><span>ESPAÑOL</span><i>✳</i><span>FRANÇAIS</span><i>✳</i><span>PORTUGUÊS</span><i>✳</i><span>العربية</span><i>✳</i><span>日本語</span><i>✳</i><span>ENGLISH</span><i>✳</i><span>ESPAÑOL</span><i>✳</i></div></div>
+      </section>v><span className="limit-badge">MAX {Math.round((config?.maxAudioSeconds || 120) / 60)} MIN · {config?.maxTranslationsPerDay || 3}/DAY</span></div><p className="card-description">Record a new message or upload an audio file from your device.</p>
       {recorder.clip ? <div className="recorded-box"><div className="recorded-label"><span><Check size={14} /> Original recording · {formatTime(recorder.clip.duration)}</span><button onClick={recorder.reset}>Remove <X size={14} /></button></div><AudioPlayer src={recorder.clip.url} label="Original recording" peaks={recorder.clip.peaks} durationHint={recorder.clip.duration} onDownload={() => saveBlob(recorder.clip!.blob, recorder.clip!.name)} /></div> : <div className={`recorder-area ${activeRecording ? "recording" : ""}`}><div className="recorder-art"><div className="recorder-rings"><button className={`record-control ${activeRecording ? "stop" : ""}`} onClick={() => activeRecording ? recorder.stop() : void recorder.start()} disabled={!activeRecording && recorder.status !== "idle"} aria-label={activeRecording ? "Stop recording" : "Start recording"}>{activeRecording ? <Square size={20} fill="currentColor" /> : <Mic size={24} />}</button></div></div><div className="record-copy"><strong>{activeRecording ? recorder.status === "paused" ? "Recording paused" : "Recording in progress" : recorder.status === "requesting" ? "Waiting for microphone access" : recorder.status === "finalizing" ? "Preparing recording" : "Start recording"}</strong><span>{activeRecording ? `${formatTime(recorder.elapsed)} / ${formatTime(config?.maxAudioSeconds || 120)}` : "Tap the microphone and speak naturally"}</span></div>{activeRecording && <button className="pause-button" onClick={recorder.status === "paused" ? recorder.resume : recorder.pause}>{recorder.status === "paused" ? <Play size={15} /> : <Pause size={15} />}{recorder.status === "paused" ? "Resume" : "Pause"}</button>}<div className="recorder-wave"><Waveform peaks={recorder.livePeaks} live={recorder.status === "recording"} /></div></div>}
       {recorder.error && <div className="inline-alert error" role="alert">{recorder.error}</div>}<div className="upload-row"><label className="upload-action"><Upload size={16} /> {recorder.importing ? "Preparing audio…" : "Upload audio"}<input type="file" accept="audio/*,.ogg,.opus,.m4a,.mp3,.wav,.webm" disabled={activeRecording || recorder.status !== "idle"} onChange={e => { const file = e.target.files?.[0]; if (file) void recorder.importFile(file); e.target.value = ""; }} /></label><span>MP3, M4A, WAV, OGG or WebM · up to {Math.round((config?.maxAudioBytes || 20 * 1024 * 1024) / 1024 / 1024)} MB</span></div></section>
       <section className="work-card language-card"><div className="card-header"><div className="section-heading"><span className="step-icon"><Globe2 size={19} /></span><div><span className="section-kicker">STEP 02</span><h2>Choose your languages</h2></div></div></div><p className="card-description">We'll use your recording as the voice reference for the translation.</p><div className="language-grid"><label>Spoken language<div className="select-field"><select value={source} onChange={e => setSource(e.target.value)}><option value="auto">🌐 Detect automatically</option>{LANGUAGES.map(([v,n,,flag]) => <option key={v} value={v}>{flag} {n}</option>)}</select><ChevronDown size={16} /></div></label><span className="language-direction"><ArrowRight size={16} /></span><label>Translate into<div className="select-field"><select value={target} onChange={e => setTarget(e.target.value)}>{availableLanguages.map(([v,n,native,flag]) => <option key={v} value={v}>{flag} {n}{native !== n ? ` · ${native}` : ""}</option>)}</select><ChevronDown size={16} /></div></label></div><p className="language-flag-note">Flags are representative; languages are spoken in many places.</p><div className="batch-language-picker"><div><strong>Create additional language versions</strong><small>One recording can create up to five separate translations. Each version uses its own credits.</small></div><div className="batch-language-options">{availableLanguages.filter(([code]) => code !== target).map(([code,name,native]) => <label key={code}><input type="checkbox" checked={batchTargets.includes(code)} disabled={batchBusy || (batchTargets.length >= 4 && !batchTargets.includes(code))} onChange={event => setBatchTargets(current => event.target.checked ? [...current,code].slice(0,4) : current.filter(value => value !== code))} /><span>{name}{native !== name ? " · " + native : ""}</span></label>)}</div></div><label className="consent-line"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} /><span>I confirm this is my voice, or I have the speaker's permission to reproduce it.</span></label><div className="translate-footer"><button className="button-primary translate-action" onClick={() => void start()} disabled={!recorder.clip || !consent || translation.busy || batchBusy}>{translation.busy ? <LoaderCircle size={17} className="spin" /> : <Sparkles size={17} />}{batchBusy ? "Creating language versions…" : translation.busy ? "Translating…" : !auth.session ? "Sign in & translate" : batchTargets.length ? `Translate into ${batchTargets.length + 1} languages` : "Translate voice note"}<ArrowRight size={16} /></button><span><LockKeyhole size={14} /> Your recording is sent securely for processing.</span></div>{batchResults.length > 0 && <div className="batch-results" aria-live="polite"><strong>Batch translation status</strong>{batchResults.map(item => <button key={item.id} onClick={() => void translation.open(item.id)}><span>{languageName(item.targetLanguage)}</span><small>{item.status}{item.error ? " · " + item.error : ""}</small><ArrowRight size={14} /></button>)}</div>}</section>
