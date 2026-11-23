@@ -1567,6 +1567,7 @@ dialog.modal{background:rgba(15,19,17,.98);color:#edf1e6;border:1px solid rgba(2
 }
 @media(max-width:390px){.page-heading.voice-hero{min-height:475px;padding:24px 18px}.voice-hero h1{font-size:38px}.hero-microcopy{display:none}.hero-signal-bottom{right:14px;bottom:52px}}
 @media(prefers-reduced-motion:reduce){.voice-hero-copy>*,.workflow-left>.work-card,.workflow-right>.work-card,.hero-language-ribbon>div{animation:none!important}.hero-visual{transform:none!important;transition:none!important}.work-card,.settings-card,.hero-primary,.button-primary,.top-signin{transition:none!important}}
+html[data-theme="dark"] body:before,html[data-theme="dark"] body:after{content:none;display:none}
 /* Light mode remains available through the existing theme switch. The hero keeps its cinematic black media frame. */
 html[data-theme="light"]{color-scheme:light;--vb-bg:#f1f3ef;--vb-panel:#fff;--vb-panel-raised:#f8faf6;--vb-ink:#19201a;--vb-muted:#687168;--vb-soft:#879087;--vb-line:rgba(22,29,21,.13);--vb-accent:#647a28}
 html[data-theme="light"] body{background:linear-gradient(180deg,#f5f7f2,#e9eee8);color:#19201a}
