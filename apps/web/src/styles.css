@@ -1510,3 +1510,12 @@ dialog.modal::backdrop{background:rgba(3,7,16,.78);backdrop-filter:blur(9px)}
 @keyframes vb-card-arrive{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @media(hover:hover) and (pointer:fine){.button-primary,.button-outline,.top-signin{transition:transform .24s cubic-bezier(.2,.75,.25,1),box-shadow .24s,filter .24s}.button-primary:hover:not(:disabled),.button-outline:hover,.top-signin:hover{transform:translateY(-2px);box-shadow:0 12px 34px rgba(108,146,231,.24)}}
 @media(prefers-reduced-motion:reduce){.workflow-left>.work-card,.workflow-right>.work-card{animation:none}.work-card,.settings-card,.button-primary,.button-outline,.top-signin{transition:none}}
+
+/* Rhine Lab / Refokus-inspired continuous language ticker */
+.hero-language-ribbon{position:absolute;z-index:4;left:clamp(26px,4vw,58px);bottom:28px;width:min(48%,620px);overflow:hidden;border-top:1px solid rgba(194,212,255,.16);padding-top:12px;mask-image:linear-gradient(90deg,transparent,#000 5%,#000 94%,transparent)}
+.hero-language-ribbon>div{display:flex;align-items:center;gap:17px;width:max-content;animation:vb-language-marquee 28s linear infinite}
+.hero-language-ribbon span{color:rgba(204,218,255,.62);font-size:8px;font-weight:850;letter-spacing:.22em;white-space:nowrap}
+.hero-language-ribbon i{font-style:normal;color:#91e7d7;font-size:9px}
+@keyframes vb-language-marquee{to{transform:translateX(-50%)}}
+@media(max-width:760px){.hero-language-ribbon{left:18px;bottom:24px;width:calc(100% - 140px);padding-top:9px}.hero-language-ribbon>div{gap:12px}.hero-language-ribbon span{font-size:7px}}
+@media(prefers-reduced-motion:reduce){.hero-language-ribbon>div{animation:none}}
