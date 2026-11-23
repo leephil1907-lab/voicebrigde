@@ -141,6 +141,15 @@ export default function App() {
     try { const saved = localStorage.getItem("voicebridge-theme"); if (saved === "light" || saved === "dark") return saved; } catch { /* storage can be blocked */ }
     return "dark";
   });
+  const [reducedMotion, setReducedMotion] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+  useEffect(() => {
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const syncPreference = () => setReducedMotion(preference.matches);
+    preference.addEventListener("change", syncPreference);
+    return () => preference.removeEventListener("change", syncPreference);
+  }, []);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem("voicebridge-theme", theme); } catch { /* theme still works in this session */ }
@@ -440,11 +449,11 @@ export default function App() {
           </div>
         </div>
         <div className="hero-visual" aria-hidden="true">
-          <video className="hero-atmosphere" autoPlay muted loop playsInline preload="metadata">
+          <video className="hero-atmosphere" autoPlay={!reducedMotion} muted loop={!reducedMotion} playsInline preload={reducedMotion ? "none" : "metadata"} onLoadedData={event => event.currentTarget.classList.add("is-ready")} onError={event => event.currentTarget.classList.add("is-fallback")}>
             <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260702_135039_b04d00db-6ee2-4e2a-a7f5-b2dfd3d24fd2.mp4" type="video/mp4" />
           </video>
           <div className="hero-visual-scrim" />
-          <div className="hero-signal-top"><span className="signal-live-dot" /> VOICE SIGNAL <span className="signal-divider" /> LIVE VISUAL</div>
+          <div className="hero-signal-top"><span className="signal-live-dot" /> VOICE SIGNAL <span className="signal-divider" /> PARTICLE FIELD</div>
           <div className="hero-signal-bottom">
             <span className="signal-language">ENGLISH <ArrowRight size={13} /> {languageName(target).toUpperCase()}</span>
             <span className="signal-preserve"><AudioWaveform size={14} /> VOICE IDENTITY PRESERVED</span>
