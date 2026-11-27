@@ -33,7 +33,7 @@ export function MarketingHome() {
         <a href="#experience">Experience</a><a href="#how-it-works">How it works</a><a href="#trust">Your voice</a><a href="#faq">FAQ</a>
       </nav>
       <div className="vb-site-actions"><a className="vb-login-link" href="/app">Sign in</a><button className="vb-site-cta" onClick={openStudio}>Get started <ArrowRight size={16}/></button><button className="vb-menu-toggle" aria-label={mobileMenuOpen ? "Close menu" : "Open menu"} aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(v => !v)}>{mobileMenuOpen ? <X size={19}/> : <Menu size={19}/>}</button></div>
-      {mobileMenuOpen && <nav className="vb-mobile-menu" aria-label="Mobile navigation"><a href="#experience" onClick={() => setMobileMenuOpen(false)}>Experience</a><a href="#how-it-works" onClick={() => setMobileMenuOpen(false)}>How it works</a><a href="#trust" onClick={() => setMobileMenuOpen(false)}>Your voice</a><a href="#faq" onClick={() => setMobileMenuOpen(false)}>FAQ</a><button onClick={openStudio}>Open VoiceBridge <ArrowRight size={16}/></button></nav>
+      {mobileMenuOpen && <nav className="vb-mobile-menu" aria-label="Mobile navigation"><a href="#experience" onClick={() => setMobileMenuOpen(false)}>Experience</a><a href="#how-it-works" onClick={() => setMobileMenuOpen(false)}>How it works</a><a href="#trust" onClick={() => setMobileMenuOpen(false)}>Your voice</a><a href="#faq" onClick={() => setMobileMenuOpen(false)}>FAQ</a><button onClick={openStudio}>Open VoiceBridge <ArrowRight size={16}/></button></nav>}
     </header>
     <main>
       <section className="vb-marketing-hero vb-reveal">
