@@ -1,19 +1,38 @@
 {
-  "id": "/",
-  "name": "VoiceBridge AI",
+  "id": "/app",
+  "name": "VoiceBridge",
   "short_name": "VoiceBridge",
-  "description": "Translate voice messages while keeping your recognizable voice, tone and expression.",
-  "start_url": "/",
+  "description": "Translate voice messages and connect across languages with VoiceBridge.",
+  "start_url": "/app",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#f6f8f6",
   "theme_color": "#193b32",
-  "categories": ["productivity", "communication", "utilities"],
+  "categories": [
+    "productivity",
+    "communication",
+    "utilities"
+  ],
   "icons": [
-    { "src": "/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "maskable" }
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
   ],
   "share_target": {
     "action": "/share-target/",
@@ -25,7 +44,15 @@
       "files": [
         {
           "name": "audio",
-          "accept": ["audio/*", ".mp3", ".wav", ".m4a", ".ogg", ".opus", ".webm"]
+          "accept": [
+            "audio/*",
+            ".mp3",
+            ".wav",
+            ".m4a",
+            ".ogg",
+            ".opus",
+            ".webm"
+          ]
         }
       ]
     }
