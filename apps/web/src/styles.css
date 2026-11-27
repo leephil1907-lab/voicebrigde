@@ -1859,3 +1859,80 @@ html[data-theme="light"] .error-state,
 html[data-theme="light"] .inline-alert.error{color:#9f332d}
 html[data-theme="light"] .error-state p,
 html[data-theme="light"] .inline-alert.error p{color:#8f3a35}
+
+
+/* WHATSAPP-INSPIRED VOICEBRIDGE THEME — preserve app structure and functionality */
+:root{
+ --vb-bg:#f0f2f5;--vb-panel:#ffffff;--vb-panel-raised:#f7f8f9;
+ --vb-ink:#111b21;--vb-muted:#54656f;--vb-soft:#667781;
+ --vb-line:#e4e9ec;--vb-accent:#00a884;--vb-accent-soft:#e6f5f0;
+ color-scheme:light
+}
+html[data-theme="light"]{
+ --vb-bg:#f0f2f5;--vb-panel:#ffffff;--vb-panel-raised:#f7f8f9;
+ --vb-ink:#111b21;--vb-muted:#54656f;--vb-soft:#667781;
+ --vb-line:#e4e9ec;--vb-accent:#00a884;--vb-accent-soft:#e6f5f0;
+ color-scheme:light
+}
+html[data-theme="dark"]{
+ --vb-bg:#111b21;--vb-panel:#202c33;--vb-panel-raised:#2a3942;
+ --vb-ink:#e9edef;--vb-muted:#b5c2c8;--vb-soft:#8696a0;
+ --vb-line:#34434b;--vb-accent:#00a884;--vb-accent-soft:#183e37;
+ color-scheme:dark
+}
+.app-sidebar{background:#075e54;color:#e9edef}
+.brand-mark{background:#d9fdd3;color:#075e54}
+.brand-dot{color:#9de4c7}
+.brand-caption,.sidebar-section-label,.recent-title{color:#b5d7d0}
+.app-nav button{color:#d6e8e4}
+.app-nav button:hover,.recent-items>button:hover,.recent-items>button.selected{background:#087568;color:#fff}
+.app-nav button.active{background:#d9fdd3;color:#075e54}
+.app-nav button.active svg{color:#075e54}
+.recent-mark{background:#087568;color:#e3f4ef}
+.sidebar-security{background:#086b5e;border-color:#278579;color:#e8f5f1}
+.sidebar-security small,.account-details small{color:#c1ddd7}
+.sidebar-account{border-color:#278579;color:#e8f5f1}
+.account-details strong{color:#fff}
+.app-main,.app-layout{background:var(--vb-bg)}
+.top-bar{background:var(--vb-panel);border-color:var(--vb-line)}
+.top-path strong,.top-page-title{color:var(--vb-ink)}
+.top-path{color:var(--vb-muted)}
+.top-signin,.button-primary,.record-control,.play-button{background:#00a884;border-color:#00a884;color:#fff}
+.top-signin:hover,.button-primary:hover:not(:disabled){background:#008f72}
+.button-outline,.upload-action,.text-link,.text-button{color:#008f72}
+.button-outline:hover,.upload-action:hover{background:#e6f5f0;border-color:#b9e5d7}
+.voice-hero h1 span,.eyebrow-label,.language-direction{color:#00a884}
+.step-icon,.quick-icon,.file-drop-icon,.info-icon{background:#e6f5f0;color:#008f72}
+.work-card,.settings-card,.send-card,.info-card{background:var(--vb-panel);border-color:var(--vb-line)}
+.quick-card{background:#e6f5f0;border-color:#ccebe1}
+.quick-card h2{color:#075e54}
+.quick-card>p,.quick-note,.quick-tag{color:#427b6d}
+.quick-note{border-color:#ccebe1}
+.recorder-area{background:#f7faf9;border-color:#cfe5df}
+.recorder-rings{background:#e6f5f0;border-color:#ccebe1}
+.recorder-wave{color:#b7e4d7}
+.record-copy strong{color:#233b35}
+.select-field,.recipient-field{border-color:#d5dfdc}
+.status-dot.ready{background:#00a884}
+.limit-badge,.settings-badge,.result-status,.language-chip{border-radius:6px}
+.mobile-bottom-nav button.active{background:#e6f5f0;color:#008f72}
+html[data-theme="dark"] .app-sidebar{background:#102d2a}
+html[data-theme="dark"] .app-nav button.active{background:#1d5148;color:#d9fdd3}
+html[data-theme="dark"] .app-nav button.active svg{color:#d9fdd3}
+html[data-theme="dark"] .quick-card{background:#183e37;border-color:#28564d}
+html[data-theme="dark"] .quick-card h2{color:#e9edef}
+html[data-theme="dark"] .quick-card>p,html[data-theme="dark"] .quick-note,html[data-theme="dark"] .quick-tag{color:#b6d9ce}
+html[data-theme="dark"] .quick-note{border-color:#28564d}
+html[data-theme="dark"] .recorder-area{background:#26383b;border-color:#3d5d59}
+html[data-theme="dark"] .recorder-rings{background:#244a43;border-color:#37685d}
+html[data-theme="dark"] .record-copy strong{color:#e9edef}
+html[data-theme="dark"] .recorder-wave{color:#37685d}
+html[data-theme="dark"] .button-outline,html[data-theme="dark"] .upload-action{color:#70d9bd}
+html[data-theme="dark"] .button-outline:hover,html[data-theme="dark"] .upload-action:hover{background:#183e37}
+html[data-theme="dark"] .step-icon,html[data-theme="dark"] .quick-icon,html[data-theme="dark"] .file-drop-icon,html[data-theme="dark"] .info-icon{background:#183e37;color:#70d9bd}
+html[data-theme="dark"] .mobile-bottom-nav button.active{background:#183e37;color:#70d9bd}
+html[data-theme="light"] .work-card h1,html[data-theme="light"] .work-card h2,html[data-theme="light"] .work-card h3,html[data-theme="light"] .work-card h4,
+html[data-theme="light"] .settings-card h1,html[data-theme="light"] .settings-card h2,html[data-theme="light"] .settings-card h3,
+html[data-theme="light"] .send-card h1,html[data-theme="light"] .send-card h2,html[data-theme="light"] .send-card h3{color:#111b21!important}
+html[data-theme="light"] .voice-hero h1 span,html[data-theme="light"] .eyebrow-label{color:#008f72}
+html[data-theme="light"] .button-outline,html[data-theme="light"] .upload-action,html[data-theme="light"] .text-link{color:#008f72}
