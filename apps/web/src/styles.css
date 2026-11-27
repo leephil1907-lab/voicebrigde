@@ -1717,3 +1717,51 @@ html[data-theme="dark"] .select-field select,html[data-theme="dark"] .input-with
 }
 @media(max-width:390px){.content-wrap{padding-left:13px;padding-right:13px}.voice-hero h1{font-size:26px}.work-card,.send-card{padding:15px}.mobile-bottom-nav button{font-size:8px}}
 @media(prefers-reduced-motion:reduce){.app-sidebar{transition:none}}
+
+
+/* CONTROL, PROFILE AND ICON ALIGNMENT POLISH */
+.top-actions{display:flex;align-items:center;gap:12px}
+.top-actions>button{height:38px;min-width:38px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.theme-toggle,.menu-mobile,.icon-button{width:38px;height:38px;min-width:38px;padding:0!important;border:1px solid var(--vb-line)!important;border-radius:8px!important;background:var(--vb-panel)!important;color:var(--vb-muted)!important;box-shadow:none!important}
+.theme-toggle:hover,.menu-mobile:hover,.icon-button:hover{background:var(--vb-accent-soft)!important;color:var(--vb-accent)!important;border-color:#c9d8f5!important}
+.theme-toggle svg,.menu-mobile svg,.icon-button svg{width:18px;height:18px;stroke-width:1.9}
+.status-button{height:36px;padding:0 11px;border-radius:8px!important;gap:8px;font-size:11px;font-weight:650}
+.status-dot{width:8px;height:8px}
+.top-user{width:38px;height:38px;min-width:38px;border:2px solid var(--vb-panel);outline:1px solid var(--vb-line);border-radius:50%;background:#e7efff;color:#2459ae;font-size:13px;font-weight:750}
+.top-user:hover{background:#d9e6ff;outline-color:#b9cdf2}
+.top-signin{min-height:38px;padding:0 14px;border-radius:8px!important;font-size:11px}
+.sidebar-account{min-height:60px;padding:12px 8px 4px;gap:11px;border-radius:8px;transition:background .15s ease}
+.sidebar-account:hover{background:#203b62}
+.user-avatar{width:36px;height:36px;border-radius:50%;background:#e7efff;color:#2459ae;font-size:12px;border:1px solid #c9d9f4}
+.account-details{min-width:0;display:block}
+.account-details strong{font-size:11px;line-height:1.35}
+.account-details small{font-size:10px;line-height:1.3}
+.sidebar-account>svg{width:16px;height:16px;flex-shrink:0;color:#a9bad3}
+.app-nav button{min-height:44px;gap:11px;padding:0 12px;border-radius:8px}
+.app-nav button>svg{width:18px;height:18px;flex-shrink:0;stroke-width:1.85}
+.recent-items>button{min-height:42px;gap:10px}
+.recent-mark{width:30px;height:30px;border-radius:7px}
+.step-icon,.quick-icon,.provider-icon,.file-drop-icon,.info-icon{width:38px;height:38px;border-radius:8px}
+.step-icon svg,.quick-icon svg,.provider-icon svg,.file-drop-icon svg,.info-icon svg{width:18px;height:18px;stroke-width:1.9}
+.limit-badge,.settings-badge,.result-status,.language-chip,.channel-badge{border-radius:6px;padding:6px 9px;font-size:10px;font-weight:650;letter-spacing:0}
+.button,.button-primary,.button-outline,.upload-action,.browse-action,.text-button,.text-link{border-radius:7px}
+.button svg,.button-primary svg,.button-outline svg,.upload-action svg,.text-button svg,.text-link svg{width:16px;height:16px;flex-shrink:0;stroke-width:1.9}
+button:focus-visible{outline:3px solid rgba(37,99,235,.25);outline-offset:2px}
+@media(max-width:760px){
+ .top-actions{gap:7px}
+ .top-actions>button{height:36px;min-width:36px}
+ .theme-toggle{width:36px;min-width:36px}
+ .menu-mobile{width:36px;min-width:36px;height:36px}
+ .status-button{height:34px;max-width:112px;padding:0 8px;gap:6px}
+ .top-user{width:36px;height:36px;min-width:36px}
+ .mobile-bottom-nav{gap:3px;padding:6px}
+ .mobile-bottom-nav button{min-height:50px;gap:5px;border-radius:7px;font-size:9px}
+ .mobile-bottom-nav button svg{width:18px;height:18px;stroke-width:1.9}
+ .mobile-bottom-nav button.active{background:var(--vb-accent-soft);color:var(--vb-accent)}
+ .sidebar-account{padding:12px 8px}
+}
+@media(max-width:390px){
+ .top-actions{gap:5px}
+ .status-button{max-width:94px;font-size:8px}
+ .mobile-bottom-nav button{font-size:8px}
+}
