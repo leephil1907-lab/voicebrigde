@@ -306,10 +306,12 @@ app.get("/v1/languages", async () => ({ items: languages }));
 
 const webDist = env.WEB_DIST_PATH || fileURLToPath(new URL("../../web/dist", import.meta.url));
 if (existsSync(resolve(webDist, "index.html"))) {
-  // @fastify/static registers the index route (GET /) when index is configured.
-  // Do not add a second app.get("/") handler here.
+  // Serve built assets directly; the public homepage lives at / and the
+  // authenticated single-page workspace is mounted at /app.
   await app.register(staticFiles, { root: resolve(webDist), wildcard: false, index: ["index.html"] });
-  app.log.info({ webDist }, "Serving VoiceBridge web studio");
+  app.get("/app", async (_request, reply) => reply.sendFile("index.html"));
+  app.get("/app/*", async (_request, reply) => reply.sendFile("index.html"));
+  app.log.info({ webDist }, "Serving VoiceBridge website and workspace");
 }
 
 app.post("/v1/voice/translate", {
