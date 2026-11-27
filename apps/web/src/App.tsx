@@ -10,6 +10,8 @@ import { ProviderIcon } from "./components/ProviderIcon";
 import { PersonalWhatsAppConnection, PersonalWhatsAppSend } from "./components/PersonalWhatsApp";
 import { LiveCalls } from "./components/LiveCalls";
 import { OwnerDashboard } from "./components/OwnerDashboard";
+import { MarketingHome } from "./MarketingHome";
+import "./marketing.css";
 import "./live-calls.css";
 import { usePersonalWhatsApp } from "./hooks/usePersonalWhatsApp";
 import { useRecorder } from "./hooks/useRecorder";
@@ -413,6 +415,7 @@ export default function App() {
   // Keep the complete, versioned UI catalogue visible. Runtime config can lag during rolling deploys;
   // the API remains authoritative and validates target codes when a translation is submitted.
   const availableLanguages = LANGUAGES;
+  if (window.location.pathname === "/" && !window.location.search && !window.location.hash) return <MarketingHome />;
   return <div className="app-layout">
     {menuOpen && <button className="mobile-overlay" aria-label="Close menu" onClick={() => setMenuOpen(false)} />}
     <aside className={`app-sidebar ${menuOpen ? "open" : ""}`} aria-label="VoiceBridge workspace sidebar">
