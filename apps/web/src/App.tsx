@@ -139,7 +139,7 @@ type View = "studio" | "read" | "calls" | "settings" | "account" | "owner";
 export default function App() {
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     try { const saved = localStorage.getItem("voicebridge-theme"); if (saved === "light" || saved === "dark") return saved; } catch { /* storage can be blocked */ }
-    return "dark";
+    return "light";
   });
   const [reducedMotion, setReducedMotion] = useState(() =>
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
