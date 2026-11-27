@@ -1936,3 +1936,101 @@ html[data-theme="light"] .settings-card h1,html[data-theme="light"] .settings-ca
 html[data-theme="light"] .send-card h1,html[data-theme="light"] .send-card h2,html[data-theme="light"] .send-card h3{color:#111b21!important}
 html[data-theme="light"] .voice-hero h1 span,html[data-theme="light"] .eyebrow-label{color:#008f72}
 html[data-theme="light"] .button-outline,html[data-theme="light"] .upload-action,html[data-theme="light"] .text-link{color:#008f72}
+
+
+/* PREMIUM META-INSPIRED TYPOGRAPHY, COHESIVE PALETTE & MOTION */
+:root{
+ --vb-bg:#f3f6f4;
+ --vb-panel:#ffffff;
+ --vb-panel-raised:#f7faf8;
+ --vb-ink:#172824;
+ --vb-muted:#647771;
+ --vb-soft:#84948e;
+ --vb-line:#e2ebe6;
+ --vb-accent:#087f68;
+ --vb-accent-soft:#e7f2ed;
+ --vb-accent-hover:#066b59;
+ --vb-shadow:0 8px 28px rgba(21,52,42,.055);
+ font-family:"Optimistic Text","Optimistic Display","Inter","Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+html,body,#root,button,input,select,textarea{
+ font-family:"Optimistic Text","Optimistic Display","Inter","Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+html[data-theme="light"]{
+ --vb-bg:#f3f6f4;--vb-panel:#fff;--vb-panel-raised:#f7faf8;
+ --vb-ink:#172824;--vb-muted:#647771;--vb-soft:#84948e;
+ --vb-line:#e2ebe6;--vb-accent:#087f68;--vb-accent-soft:#e7f2ed;
+ --vb-accent-hover:#066b59;color-scheme:light
+}
+html[data-theme="dark"]{
+ --vb-bg:#111b19;--vb-panel:#1b2925;--vb-panel-raised:#22332e;
+ --vb-ink:#edf4f0;--vb-muted:#b0c0b8;--vb-soft:#899c93;
+ --vb-line:#30423b;--vb-accent:#48b99a;--vb-accent-soft:#203e34;
+ --vb-accent-hover:#65c9aa;color-scheme:dark
+}
+body,.app-layout,.app-main,.content-wrap,.top-bar,.work-card,.settings-card,.send-card,
+.info-card,.quick-card,.mobile-bottom-nav,.app-sidebar,.app-nav button,.button,.button-primary,
+.button-outline,.upload-action,.record-control,.play-button,.select-field,.recipient-field,
+.theme-toggle,.menu-mobile,.icon-button,.status-button,.top-user,.sidebar-account{
+ transition:background-color .22s ease,color .22s ease,border-color .22s ease,box-shadow .22s ease,transform .22s ease;
+}
+.app-sidebar{background:#17483e;color:#eff8f3}
+.brand-mark{background:#d9eee3;color:#17483e}
+.brand-dot{color:#a8d9c2}
+.brand-caption,.sidebar-section-label,.recent-title{color:#b9d7c9}
+.app-nav button{color:#d6e9df}
+.app-nav button:hover,.recent-items>button:hover,.recent-items>button.selected{background:#235b4e;color:#fff}
+.app-nav button.active{background:#d9eee3;color:#17483e}
+.app-nav button.active svg{color:#17483e}
+.recent-mark{background:#2a6152;color:#e4f3eb}
+.sidebar-security{background:#1d5548;border-color:#386d5d;color:#eff8f3}
+.sidebar-security small,.account-details small{color:#c1dbce}
+.sidebar-account{border-color:#386d5d;color:#eff8f3}
+.account-details strong{color:#fff}
+.top-bar{background:var(--vb-panel);border-color:var(--vb-line)}
+.top-path strong,.top-page-title{color:var(--vb-ink)}
+.top-path{color:var(--vb-muted)}
+.work-card,.settings-card,.send-card,.info-card,.quick-card{background:var(--vb-panel);border-color:var(--vb-line);box-shadow:var(--vb-shadow)}
+.section-heading h2,.send-heading h2,.quick-card h2,.record-copy strong{color:var(--vb-ink)}
+.page-heading h1,.secondary-heading h1,.voice-hero h1{color:var(--vb-ink)}
+.page-heading h1 span,.voice-hero h1 span,.eyebrow-label,.language-direction{color:var(--vb-accent)}
+.card-description,.send-card>p,.quick-card>p,.field-title,.language-grid label{color:var(--vb-muted)}
+.step-icon,.quick-icon,.file-drop-icon,.info-icon{background:var(--vb-accent-soft);color:var(--vb-accent)}
+.quick-card{background:var(--vb-panel-raised);border-color:var(--vb-line)}
+.quick-card h2{color:var(--vb-ink)}
+.quick-card>p,.quick-note,.quick-tag{color:var(--vb-muted)}
+.quick-note{border-color:var(--vb-line)}
+.recorder-area{background:var(--vb-panel-raised);border-color:var(--vb-line)}
+.recorder-rings{background:var(--vb-accent-soft);border-color:var(--vb-line);box-shadow:none}
+.recorder-wave{color:var(--vb-line)}
+.record-control,.play-button,.top-signin,.button-primary{background:var(--vb-accent);border-color:var(--vb-accent);color:#fff}
+.record-control:hover,.play-button:hover,.top-signin:hover,.button-primary:hover:not(:disabled){background:var(--vb-accent-hover);border-color:var(--vb-accent-hover);transform:translateY(-1px)}
+.button-outline,.upload-action,.text-link,.text-button{color:var(--vb-accent)}
+.button-outline:hover,.upload-action:hover{background:var(--vb-accent-soft);border-color:#c5ded2}
+.select-field,.recipient-field,.input-with-icon{background:var(--vb-panel);border-color:var(--vb-line);color:var(--vb-ink)}
+.select-field select,.recipient-field,.input-with-icon input{color:var(--vb-ink)}
+.status-dot.ready{background:var(--vb-accent)}
+.mobile-bottom-nav button.active{background:var(--vb-accent-soft);color:var(--vb-accent)}
+html[data-theme="dark"] .app-sidebar{background:#142d27}
+html[data-theme="dark"] .app-nav button.active{background:#29483d;color:#d9eee3}
+html[data-theme="dark"] .app-nav button.active svg{color:#d9eee3}
+html[data-theme="dark"] .quick-card{background:#22332e;border-color:#30423b}
+html[data-theme="dark"] .quick-card h2{color:var(--vb-ink)}
+html[data-theme="dark"] .quick-card>p,html[data-theme="dark"] .quick-note,html[data-theme="dark"] .quick-tag{color:var(--vb-muted)}
+html[data-theme="dark"] .recorder-area{background:#22332e;border-color:#3a5047}
+html[data-theme="dark"] .recorder-rings{background:#29483d;border-color:#3a6253}
+html[data-theme="dark"] .record-copy strong{color:var(--vb-ink)}
+html[data-theme="dark"] .button-outline,html[data-theme="dark"] .upload-action{color:#74d1b1}
+html[data-theme="dark"] .step-icon,html[data-theme="dark"] .quick-icon,html[data-theme="dark"] .file-drop-icon,html[data-theme="dark"] .info-icon{background:#203e34;color:#74d1b1}
+html[data-theme="dark"] .mobile-bottom-nav button.active{background:#203e34;color:#74d1b1}
+html[data-theme="light"] .work-card h1,html[data-theme="light"] .work-card h2,html[data-theme="light"] .work-card h3,html[data-theme="light"] .work-card h4,
+html[data-theme="light"] .settings-card h1,html[data-theme="light"] .settings-card h2,html[data-theme="light"] .settings-card h3,
+html[data-theme="light"] .send-card h1,html[data-theme="light"] .send-card h2,html[data-theme="light"] .send-card h3{color:#172824!important}
+html[data-theme="light"] .voice-hero h1 span,html[data-theme="light"] .eyebrow-label{color:#087f68}
+html[data-theme="light"] .button-outline,html[data-theme="light"] .upload-action,html[data-theme="light"] .text-link{color:#087f68}
+.work-card,.settings-card,.send-card,.info-card,.quick-card{animation:vb-surface-in .42s cubic-bezier(.2,.7,.2,1) both}
+@keyframes vb-surface-in{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+.app-nav button,.mobile-bottom-nav button,.button,.button-primary,.button-outline,.upload-action,.icon-button,.theme-toggle{transition:background-color .18s ease,color .18s ease,border-color .18s ease,transform .18s ease}
+.app-nav button:hover,.mobile-bottom-nav button:hover,.button-outline:hover,.upload-action:hover{transform:translateY(-1px)}
+button:active,.button:active,.button-primary:active{transform:translateY(0) scale(.985)}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
